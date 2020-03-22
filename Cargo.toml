@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 telebot = "0.3.1"
 futures = "0.1"
+sqlite = "0.25.0"

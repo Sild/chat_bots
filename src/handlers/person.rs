@@ -1,37 +1,54 @@
 use crate::person_db;
 
 fn help(prefix: &str) -> String {
-    let mut res = String::from(prefix);
-    res.push_str("\n");
-    res.push_str("
+    return format!("{}
 Usage:
-/person add tg_login phone email fio
-/person remove id
-/person search room={} section={} floor={}
-/person info id={} tg_login={} phone={}
+/person help
+/person add tg_login='' phone='' email='' fio=''
+/person remove id=''
+/person info id='' tg_login='' phone=''
 /person link_room person_id room_num
 /person unlink_room person_id room_num
 
 * - admins also receive phone + email
-    ");
-    return res;
+    ", prefix);
 }
 
-fn add() -> String {
-    person_db::add();
+fn add(args: &Vec<&str>) -> String {
+    person_db::add("1", "2", "3", "4");
     return String::from("add");
 }
 
+fn remove(args: &Vec<&str>) -> String {
+//    person_db::add();
+    return String::from("remove");
+}
+
+fn info(args: &Vec<&str>) -> String {
+//    person_db::add();
+    return String::from("info");
+}
+
+fn link_room(args: &Vec<&str>) -> String {
+//    person_db::add();
+    return String::from("link_room");
+}
+
+fn unlink_room(args: &Vec<&str>) -> String {
+//    person_db::add();
+    return String::from("unlink_room");
+}
+
 pub fn handle(msg: &telebot::objects::Message) -> String {
-    let arguments: Vec<&str> = match msg.text.as_ref() {
-        None => std::vec::Vec::new(),
-        Some(text) => text.split(" ").collect(),
-    };
-    if arguments.len() == 0 {
-        return help("An arguments required");
-    }
+    let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
+
     return match arguments[0] {
-        "add" => add(),
+        "help" => help(""),
+        "add" => add(arguments.as_ref()),
+        "remove" => remove(arguments.as_ref()),
+        "info" => info(arguments.as_ref()),
+        "link_room" => link_room(arguments.as_ref()),
+        "unlink_room" => unlink_room(arguments.as_ref()),
         _ => help("Unknown command")
     };
 }

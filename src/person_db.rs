@@ -1,12 +1,8 @@
-pub fn add() {
+pub fn add(tg_login: &str, email: &str, fio: &str, role: &str) {
 
 }
 
-pub fn remove() {
-
-}
-
-pub fn search() {
+pub fn remove(id: u32) {
 
 }
 
