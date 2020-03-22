@@ -1,21 +1,19 @@
-use crate::person_db;
-
 fn help(prefix: &str) -> String {
     return format!("{}
-Usage:
+Использование:
 /person help
 /person add tg_login='' phone='' email='' fio=''
 /person remove id=''
 /person info id='' tg_login='' phone=''
 /person link_room person_id room_num
 /person unlink_room person_id room_num
+/person admin
 
-* - admins also receive phone + email
+изменения, почта и номер телефона доступны только администраторам
     ", prefix);
 }
 
 fn add(args: &Vec<&str>) -> String {
-    person_db::add("1", "2", "3", "4");
     return String::from("add");
 }
 
