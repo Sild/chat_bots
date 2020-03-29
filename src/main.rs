@@ -5,7 +5,7 @@ use futures::{Future, stream::Stream};
 use telebot::Bot;
 use telebot::functions::*;
 
-use aalto_tg_bot::handlers;
+use aalto_tg_bot::handler;
 use aalto_tg_bot::db::init::init_db;
 
 fn format_result(response: &str) -> String {
@@ -19,20 +19,20 @@ fn main() {
 
     let help = bot.new_cmd("/help")
         .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handlers::help::handle(&msg).as_str())).send()
+            bot.message(msg.chat.id, format_result(handler::help::handle(&msg).as_str())).send()
         })
         .for_each(|_| Ok(()));
 
     // Register a reply command which answers a message
     let person = bot.new_cmd("/person")
         .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handlers::person::handle(&msg).as_str())).send()
+            bot.message(msg.chat.id, format_result(handler::person::handle(&msg).as_str())).send()
         })
         .for_each(|_| Ok(()));
 
     let room = bot.new_cmd("/room")
         .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handlers::room::handle(&msg).as_str())).send()
+            bot.message(msg.chat.id, format_result(handler::room::handle(&msg).as_str())).send()
         })
         .for_each(|_| Ok(()));
 
