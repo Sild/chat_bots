@@ -2,6 +2,7 @@ use crate::db::db_impl::{exec, select};
 use std::borrow::Borrow;
 
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub enum  PersonRole {
     User,
     Admin,
@@ -59,14 +60,25 @@ impl Person {
         }
     }
 
+    pub fn new() -> Person {
+        return Person {
+            id: 0,
+            tg_login: String::new(),
+            email: String::new(),
+            fio: String::new(),
+            phone: String::new(),
+            role: PersonRole::Undefined
+        }
+    }
+
     pub fn tablename() -> String {
         return String::from("person");
     }
 
     pub fn to_string(&self, role: &PersonRole) -> String {
         return match role {
-            PersonRole::User => format!("id: {}, телеграм: {}, ФИО: {}, ", self.id, self.tg_login, self.fio),
-            PersonRole::Admin => format!("id: {}, телеграм: {}, email: {}, ФИО: {}, phone: {}, role: {}"
+            PersonRole::User => format!("телеграм: @{}, имя: {}, ", self.id, self.tg_login, self.fio),
+            PersonRole::Admin => format!("id: {}, телеграм: @{}, email: {}, имя: {}, phone: {}, role: {}"
                 , self.id, self.tg_login, self.email, self.fio, self.phone, self.role.to_string()),
             _ => String::from("Ошибка доступа"),
         }
@@ -82,8 +94,8 @@ impl Person {
                 , Person::tablename(), self.tg_login, self.email, self.fio, self.phone, self.role.to_string()).as_str());
             self.id = select(format!("select id from {} order by id desc limit 1", Person::tablename()).as_str())[0][0].parse().unwrap_or(0);
         } else {
-            exec(format!("update {} set tg_login='{}', email='{}', fio='{}', phone='{}', role='{}'"
-                         , Person::tablename(), self.tg_login, self.email, self.fio, self.phone, self.role.to_string()).as_str());
+            exec(format!("update {} set tg_login='{}', email='{}', fio='{}', phone='{}', role='{}' where id = {}"
+                         , Person::tablename(), self.tg_login, self.email, self.fio, self.phone, self.role.to_string(), self.id).as_str());
         }
     }
     pub fn select_by_ids(person_ids: &Vec<u32>) -> Vec<Person> {
@@ -95,6 +107,15 @@ impl Person {
         ).iter().map(|x| Person::from_vec(x)).collect();
     }
 
+    pub fn select_admins() -> Vec<Person> {
+        return select(
+            format!(
+                "select id, tg_login, email, fio, phone, role from {} where role = '{}' order by id asc;"
+                , Person::tablename()
+                , PersonRole::Admin.to_string()).as_str()
+        ).iter().map(|x| Person::from_vec(x)).collect();
+    }
+
     pub fn select_by_tg_login(tg_login: &str) -> Option<Person> {
         let persons = select(
             format!(
@@ -102,7 +123,7 @@ impl Person {
                 , Person::tablename()
                 , tg_login).as_str()
         ).iter().map(|x| Person::from_vec(x)).collect::<Vec<Person>>();
-        if persons.len() < 0 {
+        if persons.len() <= 0 {
             return None
         }
         return Some(persons.get(0).unwrap().clone());
@@ -165,6 +186,15 @@ impl Room {
         ).iter().map(|x| Room::from_vec(x)).collect();
     }
 
+    pub fn select_by_room_ids(room_ids: &Vec<u32>) -> Vec<Room> {
+        return select(
+            format!("select id, num, section, floor from {} where id in ({}) order by num asc;"
+                    , Room::tablename()
+                    , room_ids.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(",")).as_str()
+        ).iter().map(|x| Room::from_vec(x)).collect();
+    }
+
+
     pub fn create_table() {
         exec(format!("
 CREATE TABLE IF NOT EXISTS {}
@@ -204,6 +234,38 @@ impl PersonRoom {
                 , PersonRoom::tablename()
                 , room_ids.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(",")).as_str()
         ).iter().map(|x| PersonRoom::from_vec(x)).collect();
+    }
+
+    pub fn select_by_person_ids(person_ids: &Vec<u32>) -> Vec<PersonRoom> {
+        return select(
+            format!(
+                "select id, person_id, room_id from {} where person_id in ({}) order by room_id asc, person_id asc;"
+                , PersonRoom::tablename()
+                , person_ids.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(",")).as_str()
+        ).iter().map(|x| PersonRoom::from_vec(x)).collect();
+    }
+
+    pub fn save(&mut self) {
+        if self.id == 0 {
+            exec(
+                format!("insert into {} (person_id, room_id) VALUES ('{}', '{}')"
+                        , PersonRoom::tablename(), self.person_id, self.room_id).as_str());
+            self.id = select(format!("select id from {} order by id desc limit 1", PersonRoom::tablename()).as_str())[0][0].parse().unwrap_or(0);
+        } else {
+            exec(format!("update {} set person_id='{}', room_id='{}'"
+                         , PersonRoom::tablename(), self.person_id, self.room_id).as_str());
+        }
+    }
+
+    pub fn delete(&mut self) {
+        exec(format!("delete from {} where id = {}", PersonRoom::tablename(), self.id).as_str());
+        self.id = 0;
+        self.room_id = 0;
+        self.person_id = 0;
+    }
+
+    pub fn to_string(&self) -> String {
+        return format!("id: {}, person_id: {}, room_id: {}", self.id, self.person_id, self.room_id);
     }
 
     pub fn create_table() {

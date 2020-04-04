@@ -37,7 +37,7 @@ fn info(args: &Vec<&str>) -> String {
     );
 
     response.push_str(
-        util::format_response(rooms.as_ref(), persons.as_ref(), person_rooms.as_ref()).as_str()
+        util::format_response_room_info(rooms.as_ref(), persons.as_ref(), person_rooms.as_ref()).as_str()
     );
     println!("{}", response);
     return response;

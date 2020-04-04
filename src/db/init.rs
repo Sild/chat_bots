@@ -4,6 +4,7 @@ use crate::config;
 
 use super::db_impl::exec;
 use super::model;
+use crate::db::model::{Person, PersonRole};
 
 pub fn init_db() {
     let file_exists =  match fs::metadata(config::DB_PATH) {
@@ -18,6 +19,15 @@ pub fn init_db() {
     model::Person::create_table();
     model::PersonRoom::create_table();
     fill_room_table();
+    let mut admin = Person {
+        id: 0,
+        tg_login: String::from("sildtm"),
+        email: String::from("sildtm@icloud.com"),
+        fio: String::from("Dmitry"),
+        phone: String::new(),
+        role: PersonRole::Admin,
+    };
+    admin.save();
 //    fill_person_room_mock();
 }
 

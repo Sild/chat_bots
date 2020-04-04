@@ -1,6 +1,7 @@
 use crate::util;
-use crate::db::model::{Person, PersonRole};
+use crate::db::model::{Person, PersonRole, PersonRoom, Room};
 use dict::DictIface;
+use std::borrow::Borrow;
 
 
 fn help(prefix: &str) -> String {
@@ -9,25 +10,15 @@ fn help(prefix: &str) -> String {
 /person help
 /person add tg_login='' phone='' email='' name=''
 /person update id='' tg_login='' phone='' email='' name=''
-/person remove id1 id2 id3
+/person delete id1 id2 id3
 /person info id1 id2 id3
-/person link_room person_id room_num
-/person unlink_room person_id room_num
-/person admin
+/person admins
 
 изменения, почта и номер телефона доступны только администраторам
     ", prefix);
 }
 
-fn add_or_update(args: &Vec<&str>, tg_login_from: &str) -> String {
-     match Person::select_by_tg_login(tg_login_from) {
-        Some(x) => match x.role {
-            PersonRole::Admin => (),
-            _ => return String::from("Ошибка: доступно только администраторам."),
-        },
-        _ => return String::from("Ошибка: доступно только администраторам."),
-    };
-
+fn add_or_update(args: &Vec<&str>, who: &Person) -> String {
     let cmd = args.join(" ");
     let kwargs = util::parse_kwargs(cmd.as_str());
 
@@ -36,28 +27,49 @@ fn add_or_update(args: &Vec<&str>, tg_login_from: &str) -> String {
     let phone: String = kwargs.get("phone").unwrap_or(&String::new()).to_string();
     let email: String = kwargs.get("email").unwrap_or(&String::new()).to_string();
     let fio: String = kwargs.get("name").unwrap_or(&String::new()).to_string();
+    let role_str: String = kwargs.get("role").unwrap_or(&String::new()).to_string();
+
+    let role = match role_str.as_str() {
+        "" => PersonRole::User,
+        _ => PersonRole::from_str(role_str.as_str()),
+    };
 
     let mut person: Person;
     if id != 0 {
         let mut stored_persons = Person::select_by_ids(vec![id].as_ref());
         if stored_persons.len() < 1 {
-            return String::from("Нет пользователя с таким id");
+            return format!("Нет пользователя с id='{}'", id);
         } else {
             person = stored_persons.get(0).unwrap().clone();
         }
+        if !tg_login.is_empty() {
+            person.tg_login = tg_login
+        }
+        if !phone.is_empty() {
+            person.phone = phone
+        }
+        if !email.is_empty() {
+            person.email = email
+        }
+        if !fio.is_empty() {
+            person.fio = fio
+        }
+        if !role_str.is_empty() {
+            person.role = role
+        }
     } else {
         person = Person {
-            id, tg_login, phone, email, fio, role: PersonRole::User
+            id, tg_login, phone, email, fio, role
         };
     }
     person.save();
     if person.id == 0 {
-        return format!("Ошибка: не удалось сохранить пользователя: {}", person.to_string(&PersonRole::Admin));
+        return format!("Ошибка: не удалось сохранить пользователя: {}", person.to_string(&who.role));
     }
-    return format!("Сохранено: {}", person.to_string(&PersonRole::Admin));
+    return format!("Сохранено: {}", person.to_string(&who.role));
 }
 
-fn remove(args: &Vec<&str>) -> String {
+fn delete(args: &Vec<&str>) -> String {
     let mut response = String::new();
     let mut person_ids = Vec::<u32>::new();
 
@@ -73,15 +85,13 @@ fn remove(args: &Vec<&str>) -> String {
     return response;
 }
 
-fn info(args: &Vec<&str>, tg_login_from: &String) -> String {
-    let from_role = match Person::select_by_tg_login(tg_login_from) {
-        Some(x) => x.role,
-        _ => PersonRole::Undefined,
-    };
+fn info(args: &Vec<&str>, who: &Person) -> String {
+    if args.len() < 2 {
+        return help("Не достаточно аргументов: введите хотя бы 1 номер квартиры");
+    }
 
     let mut response = String::new();
     let mut person_ids = Vec::<u32>::new();
-
 
     for i in 1..args.len() {
         match args[i].parse::<u32>() {
@@ -90,8 +100,24 @@ fn info(args: &Vec<&str>, tg_login_from: &String) -> String {
         };
     }
     let persons = Person::select_by_ids(&person_ids);
-    for p in &persons {
-        response.push_str(format!("{}\n", p.to_string(&from_role)).as_str());
+    let person_rooms = PersonRoom::select_by_person_ids(
+        persons.iter().map(|x| x.id).collect::<Vec<u32>>().as_ref()
+    );
+    let rooms = Room::select_by_room_nums(
+        person_rooms.iter().map(|x| x.room_id).collect::<Vec<u32>>().as_ref()
+
+    );
+    response.push_str(
+        util::format_response_person_info(persons.as_ref(),rooms.as_ref(), person_rooms.as_ref(), &who.role).as_str()
+    );
+    println!("{}", response);
+    return response;
+}
+
+fn admins(who: &Person) -> String {
+    let mut response = String::new();
+    for p in Person::select_admins() {
+        response.push_str(format!("{}\n", p.to_string(&who.role)).as_str());
     }
     return response;
 }
@@ -107,16 +133,26 @@ fn unlink_room(args: &Vec<&str>) -> String {
 }
 
 pub fn handle(msg: &telebot::objects::Message) -> String {
+    let who_tg_login = msg.from.as_ref().unwrap().username.as_ref().unwrap();
+
     let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
+    let who = Person::select_by_tg_login(who_tg_login);
+
+    if who.is_none() {
+        return format!("Ошибка: пользователь с tg_login='{}' не найден.", msg.from.as_ref().unwrap().username.as_ref().unwrap_or(&String::new()));
+    }
+    let who = who.unwrap();
+
+    if who.role != PersonRole::Admin && !vec!("help", "info", "admins").contains(&arguments[0]) {
+    }
 
     return match arguments[0] {
         "help" => help(""),
-        "add" => add_or_update(arguments.as_ref(), &msg.from.as_ref().unwrap().username.unwrap_or(String::new())),
-        "update" => add_or_update(arguments.as_ref(), &msg.from.as_ref().unwrap().username.unwrap_or(String::new())),
-        "remove" => remove(arguments.as_ref()),
-        "info" => info(arguments.as_ref(), &msg.from.as_ref().unwrap().username.unwrap_or(String::new())),
-        "link_room" => link_room(arguments.as_ref()),
-        "unlink_room" => unlink_room(arguments.as_ref()),
+        "add" => add_or_update(arguments.as_ref(), &who),
+        "update" => add_or_update(arguments.as_ref(), &who),
+        "delete" => delete(arguments.as_ref()),
+        "info" => info(arguments.as_ref(), &who),
+        "admins" => admins(&who),
         _ => help("Unknown command")
     };
 }

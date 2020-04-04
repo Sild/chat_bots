@@ -17,7 +17,7 @@ pub fn parse_kwargs(text: &str) -> Dict::<String> {
     return kwargs;
 }
 
-pub fn format_response(rooms: &Vec<model::Room>, persons: &Vec<model::Person>, person_rooms: &Vec<model::PersonRoom>) -> String {
+pub fn format_response_room_info(rooms: &Vec<model::Room>, persons: &Vec<model::Person>, person_rooms: &Vec<model::PersonRoom>) -> String {
     let mut response = String::new();
     for r in rooms {
         response.push_str(format!("{}\n",r.to_string()).as_str());
@@ -33,4 +33,26 @@ pub fn format_response(rooms: &Vec<model::Room>, persons: &Vec<model::Person>, p
         }
     }
     return response;
+}
+
+pub fn format_response_person_info(persons: &Vec<model::Person>, rooms: &Vec<model::Room>, person_rooms: &Vec<model::PersonRoom>, role: &PersonRole) -> String {
+    let mut response = String::new();
+    for p in persons {
+        response.push_str(format!("{}\n",p.to_string(role)).as_str());
+        for pr in person_rooms {
+            if pr.person_id != p.id {
+                continue;
+            }
+            for r in rooms {
+                if r.id == pr.room_id {
+                    response.push_str(format!("{}\n", r.to_string()).as_str());
+                }
+            }
+        }
+    }
+    return response;
+}
+
+pub fn user_exists(tg_login_from: &str) {
+
 }

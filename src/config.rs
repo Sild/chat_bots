@@ -1,1 +1,1 @@
-pub static DB_PATH: &str = "/tmp/aalto_tg_bot_db.sqlite";
+pub static DB_PATH: &str = "./aalto_tg_bot_db.sqlite";
