@@ -1,7 +1,7 @@
 use crate::util;
 use crate::db::model::{Person, PersonRole, PersonRoom, Room};
 use dict::DictIface;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 
 
 fn help(prefix: &str) -> String {
@@ -87,19 +87,21 @@ fn delete(args: &Vec<&str>) -> String {
 
 fn info(args: &Vec<&str>, who: &Person) -> String {
     if args.len() < 2 {
-        return help("Не достаточно аргументов: введите хотя бы 1 номер квартиры");
+        return help("Не достаточно аргументов: введите хотя бы 1 идентификатор");
     }
 
     let mut response = String::new();
     let mut person_ids = Vec::<u32>::new();
+    let mut tg_logins = Vec::<String>::new();
 
     for i in 1..args.len() {
         match args[i].parse::<u32>() {
             Ok(t) => person_ids.push(t),
-            _ => response.push_str(format!("Ошибка: странный id пользователя: '{}'\n", args[i]).as_str()),
+            _ => tg_logins.push(String::from(args[i])),
         };
     }
-    let persons = Person::select_by_ids(&person_ids);
+    let mut persons = Person::select_by_ids(&person_ids);
+    persons.append(Person::select_by_tg_logins(&tg_logins).borrow_mut());
     let person_rooms = PersonRoom::select_by_person_ids(
         persons.iter().map(|x| x.id).collect::<Vec<u32>>().as_ref()
     );
@@ -133,15 +135,17 @@ fn unlink_room(args: &Vec<&str>) -> String {
 }
 
 pub fn handle(msg: &telebot::objects::Message) -> String {
-    let who_tg_login = msg.from.as_ref().unwrap().username.as_ref().unwrap();
+    println!("\nnew request: '/person {}'", msg.text.as_ref().unwrap());
+
+    let who_tg_login = msg.from.as_ref().unwrap().username.as_ref().unwrap().clone();
 
     let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
-    let who = Person::select_by_tg_login(who_tg_login);
+    let who = Person::select_by_tg_logins(&vec!(who_tg_login));
 
-    if who.is_none() {
+    if who.len() < 1 {
         return format!("Ошибка: пользователь с tg_login='{}' не найден.", msg.from.as_ref().unwrap().username.as_ref().unwrap_or(&String::new()));
     }
-    let who = who.unwrap();
+    let who = who.get(0).unwrap();
 
     if who.role != PersonRole::Admin && !vec!("help", "info", "admins").contains(&arguments[0]) {
     }

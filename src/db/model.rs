@@ -77,7 +77,7 @@ impl Person {
 
     pub fn to_string(&self, role: &PersonRole) -> String {
         return match role {
-            PersonRole::User => format!("телеграм: @{}, имя: {}, ", self.id, self.tg_login, self.fio),
+            PersonRole::User => format!("телеграм: @{}, имя: {}, ", self.tg_login, self.fio),
             PersonRole::Admin => format!("id: {}, телеграм: @{}, email: {}, имя: {}, phone: {}, role: {}"
                 , self.id, self.tg_login, self.email, self.fio, self.phone, self.role.to_string()),
             _ => String::from("Ошибка доступа"),
@@ -116,17 +116,13 @@ impl Person {
         ).iter().map(|x| Person::from_vec(x)).collect();
     }
 
-    pub fn select_by_tg_login(tg_login: &str) -> Option<Person> {
-        let persons = select(
+    pub fn select_by_tg_logins(tg_logins: &Vec<String>) -> Vec<Person> {
+        return select(
             format!(
-                "select id, tg_login, email, fio, phone, role from {} where tg_login = '{}';"
+                "select id, tg_login, email, fio, phone, role from {} where tg_login in ({});"
                 , Person::tablename()
-                , tg_login).as_str()
+                , tg_logins.iter().map(|x| format!("'{}'", x)).collect::<Vec<String>>().join(",")).as_str()
         ).iter().map(|x| Person::from_vec(x)).collect::<Vec<Person>>();
-        if persons.len() <= 0 {
-            return None
-        }
-        return Some(persons.get(0).unwrap().clone());
     }
 
     pub fn delete_by_ids(person_ids: &Vec<u32>) {

@@ -82,6 +82,8 @@ fn find(args: &Vec<&str>) -> String {
 }
 
 pub fn handle(msg: &telebot::objects::Message) -> String {
+    println!("\nnew request: '/room {}'", msg.text.as_ref().unwrap());
+
     let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
     return match arguments[0] {
         "help" => help(""),

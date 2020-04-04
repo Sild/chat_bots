@@ -22,12 +22,12 @@ fn link_unlink_impl(args: &Vec<&str>, remove: bool) -> String {
     if tg_login.is_empty() || room_num == 0 {
         return String::from("Ошибка: некорректные параметры");
     }
-    let person = Person::select_by_tg_login(tg_login.as_str());
+    let person = Person::select_by_tg_logins(&vec!(tg_login.clone()));
     let rooms = Room::select_by_room_nums(&vec!(room_num));
-    if person.is_none() {
+    if person.len() < 1 {
         return format!("Не нашли пользователя с tg_login='{}'", tg_login);
     }
-    let person = person.unwrap();
+    let person = person.get(0).unwrap();
     if rooms.len() < 1 {
         return format!("Не нашли квартиру с номером='{}'", room_num);
     }
@@ -55,12 +55,14 @@ fn link_unlink_impl(args: &Vec<&str>, remove: bool) -> String {
 }
 
 pub fn handle(msg: &telebot::objects::Message) -> String {
+    println!("\nnew request: '/person_room {}'", msg.text.as_ref().unwrap());
+
     let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
     let who = match msg.from.as_ref().unwrap().username.as_ref() {
-        Some(x) => Person::select_by_tg_login(x),
-        _ => None,
+        Some(x) => Person::select_by_tg_logins(&vec!(x.clone())),
+        _ => Vec::new(),
     };
-    if who.is_none() || who.unwrap().role != PersonRole::Admin {
+    if who.len() < 1 || who.get(0).unwrap().role != PersonRole::Admin {
         return format!("Ошибка: пользователь tg_login='{}' не найден или не является администратором.", msg.from.as_ref().unwrap().username.as_ref().unwrap_or(&String::new()));
     }
     return match arguments[0] {
