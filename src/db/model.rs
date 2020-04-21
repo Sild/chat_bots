@@ -1,5 +1,4 @@
 use crate::db::db_impl::{exec, select};
-use std::borrow::Borrow;
 
 #[derive(Clone)]
 #[derive(PartialEq)]

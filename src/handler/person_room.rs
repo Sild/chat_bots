@@ -1,7 +1,6 @@
 use crate::util;
 use crate::db::model::{Person, PersonRole, Room, PersonRoom};
 use dict::DictIface;
-use std::borrow::Borrow;
 
 
 fn help(prefix: &str) -> String {
@@ -34,7 +33,7 @@ fn link_unlink_impl(args: &Vec<&str>, remove: bool) -> String {
     let mut person_rooms = PersonRoom::select_by_room_ids(&vec!(rooms[0].id));
     for pr in &mut person_rooms {
         if pr.person_id == person.id {
-            if (remove) {
+            if remove {
                 pr.delete();
                 return String::from("Удалено.");
             } else {

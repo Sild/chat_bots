@@ -61,10 +61,10 @@ fn fill_room_table() {
     exec(query.as_str());
 }
 
-fn fill_person_room_mock() {
+fn _fill_person_room_mock() {
     let query = String::from("
 INSERT INTO person (tg_login, fio, phone) VALUES
-('sildtm', 'Kordd', '89959979747'), ('sildtm2', 'Kordd2', '9999');
+('sildtm', 'fio', '1111'), ('sildtm2', 'fio2', '2222');
     ");
      exec(query.as_str());
 

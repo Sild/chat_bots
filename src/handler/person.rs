@@ -1,7 +1,7 @@
 use crate::util;
 use crate::db::model::{Person, PersonRole, PersonRoom, Room};
 use dict::DictIface;
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 
 
 fn help(prefix: &str) -> String {
@@ -36,7 +36,7 @@ fn add_or_update(args: &Vec<&str>, who: &Person) -> String {
 
     let mut person: Person;
     if id != 0 {
-        let mut stored_persons = Person::select_by_ids(vec![id].as_ref());
+        let stored_persons = Person::select_by_ids(vec![id].as_ref());
         if stored_persons.len() < 1 {
             return format!("Нет пользователя с id='{}'", id);
         } else {
@@ -122,16 +122,6 @@ fn admins(who: &Person) -> String {
         response.push_str(format!("{}\n", p.to_string(&who.role)).as_str());
     }
     return response;
-}
-
-fn link_room(args: &Vec<&str>) -> String {
-//    person_db::add();
-    return String::from("link_room");
-}
-
-fn unlink_room(args: &Vec<&str>) -> String {
-//    person_db::add();
-    return String::from("unlink_room");
 }
 
 pub fn handle(msg: &telebot::objects::Message) -> String {

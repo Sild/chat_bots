@@ -52,7 +52,3 @@ pub fn format_response_person_info(persons: &Vec<model::Person>, rooms: &Vec<mod
     }
     return response;
 }
-
-pub fn user_exists(tg_login_from: &str) {
-
-}

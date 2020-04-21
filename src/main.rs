@@ -2,7 +2,7 @@ use std::env;
 
 use futures::{Future, stream::Stream};
 
-use telebot::{Bot, file::File};
+use telebot::Bot;
 use telebot::functions::*;
 
 use aalto_tg_bot::handler;
