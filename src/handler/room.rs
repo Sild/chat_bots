@@ -4,6 +4,8 @@ use dict::DictIface;
 use crate::db::model;
 use crate::db::db_impl;
 use crate::util;
+use crate::bot_wrapper;
+
 
 
 fn help(prefix: &str) -> String {
@@ -81,10 +83,10 @@ fn find(args: &Vec<&str>) -> String {
     return response;
 }
 
-pub fn handle(msg: &telebot::objects::Message) -> String {
-    println!("\nnew request: '/room {}'", msg.text.as_ref().unwrap());
+pub fn handle(msg: &bot_wrapper::Message) -> String {
+    println!("\nnew request: '/room {}'", msg.data);
 
-    let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
+    let arguments: Vec<&str> = msg.data.split(" ").collect();
     return match arguments[0] {
         "help" => help(""),
         "info" => info(arguments.as_ref()),

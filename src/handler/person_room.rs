@@ -1,6 +1,7 @@
 use crate::util;
 use crate::db::model::{Person, PersonRole, Room, PersonRoom};
 use dict::DictIface;
+use crate::bot_wrapper;
 
 
 fn help(prefix: &str) -> String {
@@ -53,16 +54,14 @@ fn link_unlink_impl(args: &Vec<&str>, remove: bool) -> String {
     return format!("Сохранено: {} (tg_login: '{}', квартира: {})", person_room.to_string(), person.tg_login, rooms[0].num);
 }
 
-pub fn handle(msg: &telebot::objects::Message) -> String {
-    println!("\nnew request: '/person_room {}'", msg.text.as_ref().unwrap());
+pub fn handle(from: &bot_wrapper::From, msg: &bot_wrapper::Message) -> String {
+    println!("\nnew request: '/person_room {}'", msg.data);
 
-    let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
-    let who = match msg.from.as_ref().unwrap().username.as_ref() {
-        Some(x) => Person::select_by_tg_logins(&vec!(x.clone())),
-        _ => Vec::new(),
-    };
+    let arguments: Vec<&str> = msg.data.split(" ").collect();
+    let who = Person::select_by_tg_logins(&vec!(from.username.clone()));
+
     if who.len() < 1 || who.get(0).unwrap().role != PersonRole::Admin {
-        return format!("Ошибка: пользователь tg_login='{}' не найден или не является администратором.", msg.from.as_ref().unwrap().username.as_ref().unwrap_or(&String::new()));
+        return format!("Ошибка: пользователь tg_login='{}' не найден или не является администратором.", from.username);
     }
     return match arguments[0] {
         "help" => help(""),

@@ -1,63 +1,33 @@
 use std::env;
+use bot_wrapper;
+use futures::StreamExt;
+use telegram_bot::{Error, Api, Message};
+use telegram_bot::*;
 
-use futures::{Future, stream::Stream};
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let token = env::var("TELEGRAM_BOT_TOKEN_AALTO").expect("TELEGRAM_BOT_TOKEN_AALTO not set");
+    let api = Api::new(token);
 
-use telebot::Bot;
-use telebot::functions::*;
+    // Fetch new updates via long poll method
+    let mut stream = api.stream();
+    while let Some(update) = stream.next().await {
+        // If the received update contains a new message...
+        let update = update?;
+        if let telegram_bot::UpdateKind::Message(message) = update.kind {
+            let msg = bot_wrapper::Message::from(message);
+            if let telegram_bot::MessageKind::Text { ref data, .. } = message.kind {
+                // Print received text message to stdout.
+                println!("<{}>: {}", &message.from.first_name, data);
 
-use aalto_tg_bot::handler;
-use aalto_tg_bot::db::init::init_db;
-use aalto_tg_bot::config;
-
-fn format_result(response: &str) -> String {
-    return format!("Результат:\n{}", response);
-}
-
-fn main() {
-    init_db();
-
-    let mut bot = Bot::new(&env::var("TELEGRAM_BOT_TOKEN_AALTO").unwrap()).update_interval(100);
-
-    let help = bot.new_cmd("/help")
-        .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handler::help::handle(&msg).as_str())).send()
-        })
-        .for_each(|_| Ok(()));
-
-    // Register a reply command which answers a message
-    let person = bot.new_cmd("/person")
-        .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handler::person::handle(&msg).as_str())).send()
-        })
-        .for_each(|_| Ok(()));
-
-    let room = bot.new_cmd("/room")
-        .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handler::room::handle(&msg).as_str())).send()
-        })
-        .for_each(|_| Ok(()));
-
-    let person_room = bot.new_cmd("/person_room")
-        .and_then(|(bot, msg)| {
-            bot.message(msg.chat.id, format_result(handler::person_room::handle(&msg).as_str())).send()
-        })
-        .for_each(|_| Ok(()));
-
-    let dump_db = bot.new_cmd("/dump_db")
-        .and_then(|(bot, msg)| {
-            if msg.from.unwrap().username.unwrap() == "sildtm" {
-                bot.document(msg.chat.id)
-                    .file(config::DB_PATH)
-                    .send()
-            } else {
-                bot.document(msg.chat.id)
-                    .file(("empty.sqlite", "".as_bytes()))
-                    .send()
+                // Answer message with "Hi".
+                api.send(message.text_reply(format!(
+                    "Hi, {}! You just wrote '{}'",
+                    &message.from.first_name, data
+                )))
+                    .await?;
             }
-        })
-        .for_each(|_| Ok(()));
-
-    let handlers = help.join(person).join(room).join(person_room).join(dump_db);
-
-    bot.run_with(handlers);
+        }
+    }
+    Ok(())
 }

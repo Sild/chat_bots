@@ -2,6 +2,8 @@ use crate::util;
 use crate::db::model::{Person, PersonRole, PersonRoom, Room};
 use dict::DictIface;
 use std::borrow::BorrowMut;
+use crate::bot_wrapper;
+
 
 
 fn help(prefix: &str) -> String {
@@ -124,12 +126,12 @@ fn admins(who: &Person) -> String {
     return response;
 }
 
-pub fn handle(msg: &telebot::objects::Message) -> String {
-    println!("\nnew request: '/person {}'", msg.text.as_ref().unwrap());
+pub fn handle(from: &bot_wrapper::From, msg: &bot_wrapper::Message) -> String {
+    println!("\nnew request: '/person {}'", msg.data);
 
-    let who_tg_login = msg.from.as_ref().unwrap().username.as_ref().unwrap().clone();
+    let who_tg_login = from.username.clone();
 
-    let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
+    let arguments: Vec<&str> = msg.data.split(" ").collect();
     let who = Person::select_by_tg_logins(&vec!(who_tg_login));
 
     let who = match who.len() {
