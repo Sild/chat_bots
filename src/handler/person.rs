@@ -132,12 +132,12 @@ pub fn handle(msg: &telebot::objects::Message) -> String {
     let arguments: Vec<&str> = msg.text.as_ref().unwrap().split(" ").collect();
     let who = Person::select_by_tg_logins(&vec!(who_tg_login));
 
-    if who.len() < 1 {
-        return format!("Ошибка: пользователь с tg_login='{}' не найден.", msg.from.as_ref().unwrap().username.as_ref().unwrap_or(&String::new()));
-    }
-    let who = who.get(0).unwrap();
-
+    let who = match who.len() {
+        0 => Person::new(),
+        _ => who.get(0).unwrap().clone(),
+    };
     if who.role != PersonRole::Admin && !vec!("help", "info", "admins").contains(&arguments[0]) {
+        return String::from("Ошибка: редактирование доступно только администраторам");
     }
 
     return match arguments[0] {
