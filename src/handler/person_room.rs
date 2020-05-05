@@ -55,18 +55,21 @@ fn link_unlink_impl(args: &Vec<&str>, remove: bool) -> String {
 }
 
 pub fn handle(from: &bot_wrapper::From, msg: &bot_wrapper::Message) -> String {
-    println!("\nnew request: '/person_room {}'", msg.data);
-
     let arguments: Vec<&str> = msg.data.split(" ").collect();
-    let who = Person::select_by_tg_logins(&vec!(from.username.clone()));
+    let command = arguments.get(1).unwrap_or(&"/help");
 
-    if who.len() < 1 || who.get(0).unwrap().role != PersonRole::Admin {
+    let who = match Person::select_by_tg_logins(&vec!(from.username.clone())).get(0) {
+        Some(x) => x.clone(),
+        _ => Person::new(),
+    };
+    if who.role != PersonRole::Admin {
         return format!("Ошибка: пользователь tg_login='{}' не найден или не является администратором.", from.username);
     }
-    return match arguments[0] {
+
+    return match *command {
         "help" => help(""),
         "link" => link_unlink_impl(arguments.as_ref(), false),
         "unlink" => link_unlink_impl(arguments.as_ref(), true),
-        _ => help("Unknown command")
+        _ => help("Неизвесная команда")
     };
 }

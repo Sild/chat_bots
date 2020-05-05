@@ -1,10 +1,7 @@
-use crate::bot_wrapper;
-
-pub fn handle(msg: &bot_wrapper::Message) -> String {
-    println!("\nnew request: '/help {}'", msg.data);
-
+pub fn handle() -> String {
     return String::from(
         format!("Usage:
+/help
 /room help
 /person help
 /person_room help

@@ -84,13 +84,13 @@ fn find(args: &Vec<&str>) -> String {
 }
 
 pub fn handle(msg: &bot_wrapper::Message) -> String {
-    println!("\nnew request: '/room {}'", msg.data);
-
     let arguments: Vec<&str> = msg.data.split(" ").collect();
-    return match arguments[0] {
+    let command = arguments.get(1).unwrap_or(&"/help");
+
+    return match *command {
         "help" => help(""),
         "info" => info(arguments.as_ref()),
         "find" => find(arguments.as_ref()),
-        _ => help("Unknown command")
+        _ => help("Неизвесная команда")
     };
 }

@@ -127,28 +127,25 @@ fn admins(who: &Person) -> String {
 }
 
 pub fn handle(from: &bot_wrapper::From, msg: &bot_wrapper::Message) -> String {
-    println!("\nnew request: '/person {}'", msg.data);
-
-    let who_tg_login = from.username.clone();
-
     let arguments: Vec<&str> = msg.data.split(" ").collect();
-    let who = Person::select_by_tg_logins(&vec!(who_tg_login));
+    let command = arguments.get(1).unwrap_or(&"/help");
 
-    let who = match who.len() {
-        0 => Person::new(),
-        _ => who.get(0).unwrap().clone(),
+    let who = match Person::select_by_tg_logins(&vec!(from.username.clone())).get(0) {
+        Some(x) => x.clone(),
+        _ => Person::new(),
     };
-    if who.role != PersonRole::Admin && !vec!("help", "info", "admins").contains(&arguments[0]) {
+
+    if vec!("add", "update", "delete").contains(command) && who.role != PersonRole::Admin {
         return String::from("Ошибка: редактирование доступно только администраторам");
     }
 
-    return match arguments[0] {
+    return match *command {
         "help" => help(""),
         "add" => add_or_update(arguments.as_ref(), &who),
         "update" => add_or_update(arguments.as_ref(), &who),
         "delete" => delete(arguments.as_ref()),
         "info" => info(arguments.as_ref(), &who),
         "admins" => admins(&who),
-        _ => help("Unknown command")
+        _ => help("Неизвесная команда")
     };
 }
