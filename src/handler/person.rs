@@ -75,7 +75,7 @@ fn delete(args: &Vec<&str>) -> String {
     let mut response = String::new();
     let mut person_ids = Vec::<u32>::new();
 
-    for i in 1..args.len() {
+    for i in 2..args.len() {
         match args[i].parse::<u32>() {
             Ok(t) => person_ids.push(t),
             _ => response.push_str(format!("Ошибка: странный id пользователя: '{}'\n", args[i]).as_str()),
@@ -88,7 +88,7 @@ fn delete(args: &Vec<&str>) -> String {
 }
 
 fn info(args: &Vec<&str>, who: &Person) -> String {
-    if args.len() < 2 {
+    if args.len() < 3 {
         return help("Не достаточно аргументов: введите хотя бы 1 идентификатор");
     }
 
@@ -96,7 +96,7 @@ fn info(args: &Vec<&str>, who: &Person) -> String {
     let mut person_ids = Vec::<u32>::new();
     let mut tg_logins = Vec::<String>::new();
 
-    for i in 1..args.len() {
+    for i in 2..args.len() {
         match args[i].parse::<u32>() {
             Ok(t) => person_ids.push(t),
             _ => tg_logins.push(String::from(args[i])),
@@ -115,6 +115,9 @@ fn info(args: &Vec<&str>, who: &Person) -> String {
         util::format_response_person_info(persons.as_ref(),rooms.as_ref(), person_rooms.as_ref(), &who.role).as_str()
     );
     println!("{}", response);
+    if response.is_empty() {
+        return String::from("Пользователей с такими идентификаторами не найдено.");
+    }
     return response;
 }
 

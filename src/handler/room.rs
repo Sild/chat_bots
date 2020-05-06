@@ -18,13 +18,13 @@ fn help(prefix: &str) -> String {
 }
 
 fn info(args: &Vec<&str>) -> String {
-    if args.len() < 2 {
+    if args.len() < 3 {
         return help("Не достаточно аргументов: введите хотя бы 1 номер квартиры");
     }
     let mut response = String::new();
 
     let mut room_nums = Vec::<u32>::new();
-    for i in 1..args.len() {
+    for i in 2..args.len() {
         match args[i].parse::<u32>() {
             Ok(t) => room_nums.push(t),
             _ => response.push_str(format!("Ошибка: странный номер квартиры: '{}'\n", args[i]).as_str()),

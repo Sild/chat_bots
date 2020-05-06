@@ -1,5 +1,4 @@
 use crate::bot_wrapper;
-use std::panic::resume_unwind;
 
 pub fn handle(from: &bot_wrapper::From, msg: &bot_wrapper::Message) -> String {
     let mode = *(msg.data.split(" ").collect::<Vec<&str>>().get(0).unwrap_or(&""));

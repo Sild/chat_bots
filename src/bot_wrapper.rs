@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 pub struct From {
     pub first_name: String,
     pub last_name: String,
