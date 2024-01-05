@@ -1,34 +1,19 @@
-use serde::Serialize;
-use crate::db::db_impl::{exec, select};
+use serde::{Deserialize, Serialize};
+use crate::db::db::{exec, select};
+use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
+use crate::db::ObjectID;
 
-#[derive(Clone, PartialEq, Serialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum  PersonRole {
     User,
     Admin,
+    #[serde(other)]
     Undefined,
 }
 
-impl PersonRole {
-    pub fn to_string(&self) -> String {
-        return match self {
-            PersonRole::User => String::from("User"),
-            PersonRole::Admin => String::from("Admin"),
-            _ => String::from("Undefined"),
-        }
-    }
-
-    pub fn from_str(raw: &str) -> PersonRole {
-        return match raw {
-            "User" => PersonRole::User,
-            "Admin" => PersonRole::Admin,
-            _ => PersonRole::Undefined,
-        };
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Person {
-    pub id: u32,
+    pub id: ObjectID,
     pub tg_login: String,
     pub email: String,
     pub fio: String,
@@ -37,31 +22,9 @@ pub struct Person {
 }
 
 impl Person {
-    pub fn from_vec(fields: &Vec<String>) -> Person {
+    pub fn new(tg_login: &str, email: &str, fio: &str, phone: &str) -> Person {
         return Person {
-            id: fields[0].parse().unwrap(),
-            tg_login: fields[1].to_string(),
-            email: fields[2].to_string(),
-            fio: fields[3].to_string(),
-            phone: fields[4].to_string(),
-            role: PersonRole::from_str(fields[5].as_str()),
-        };
-    }
-
-    pub fn from_fields(tg_login: &str, email: &str, fio: &str, phone: &str) -> Person {
-        return Person {
-            id: 0,
-            tg_login: String::from(tg_login),
-            email: String::from(email),
-            fio: String::from(fio),
-            phone: String::from(phone),
-            role: PersonRole::User
-        }
-    }
-
-    pub fn new() -> Person {
-        return Person {
-            id: 0,
+            id: ObjectID(0),
             tg_login: String::new(),
             email: String::new(),
             fio: String::new(),
@@ -70,49 +33,13 @@ impl Person {
         }
     }
 
-    pub fn tablename() -> String {
-        return String::from("person");
-    }
-
     pub fn to_string(&self, role: &PersonRole) -> String {
         return match role {
-            PersonRole::User => format!("телеграм: @{}, имя: {}, ", self.tg_login, self.fio),
-            PersonRole::Admin => format!("id: {}, телеграм: @{}, email: {}, имя: {}, phone: {}, role: {}"
-                , self.id, self.tg_login, self.email, self.fio, self.phone, self.role.to_string()),
+            PersonRole::User => format!("телеграм: {}, имя: {}, ", self.tg_login, self.fio),
+            PersonRole::Admin => format!("id: {}, телеграм: {}, email: {}, имя: {}, phone: {}, role: {}"
+                , self.id.0, self.tg_login, self.email, self.fio, self.phone, self.role.to_string()),
             _ => String::from("Ошибка доступа"),
         }
-    }
-
-    pub fn save(&mut self) {
-        if self.tg_login == String::from("sildtm") {
-            self.role = PersonRole::Admin;
-        }
-        if self.id == 0 {
-            exec(
-                format!("insert into {} (tg_login, email, fio, phone, role) VALUES ('{}', '{}', '{}', '{}', '{}')"
-                , Person::tablename(), self.tg_login, self.email, self.fio, self.phone, self.role.to_string()).as_str());
-            self.id = select(format!("select id from {} order by id desc limit 1", Person::tablename()).as_str())[0][0].parse().unwrap_or(0);
-        } else {
-            exec(format!("update {} set tg_login='{}', email='{}', fio='{}', phone='{}', role='{}' where id = {}"
-                         , Person::tablename(), self.tg_login, self.email, self.fio, self.phone, self.role.to_string(), self.id).as_str());
-        }
-    }
-    pub fn select_by_ids(person_ids: &Vec<u32>) -> Vec<Person> {
-        return select(
-            format!(
-                "select id, tg_login, email, fio, phone, role from {} where id in ({}) order by id asc;"
-                , Person::tablename()
-                , person_ids.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(",")).as_str()
-        ).iter().map(|x| Person::from_vec(x)).collect();
-    }
-
-    pub fn select_admins() -> Vec<Person> {
-        return select(
-            format!(
-                "select id, tg_login, email, fio, phone, role from {} where role = '{}' order by id asc;"
-                , Person::tablename()
-                , PersonRole::Admin.to_string()).as_str()
-        ).iter().map(|x| Person::from_vec(x)).collect();
     }
 
     pub fn select_by_tg_logins(tg_logins: &Vec<String>) -> Vec<Person> {
@@ -148,6 +75,7 @@ CREATE TABLE IF NOT EXISTS {}
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Flat {
     pub id: u32,
     pub num: u32,

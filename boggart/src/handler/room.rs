@@ -2,7 +2,7 @@ extern crate dict;
 use dict::DictIface;
 
 use crate::db::model;
-use crate::db::db_impl;
+use crate::db::db;
 use crate::util;
 use crate::bot_wrapper;
 
@@ -65,7 +65,7 @@ fn find(args: &Vec<&str>) -> String {
         _ => format!("floor = {}", floor),
     };
 
-    let rooms: Vec<model::Flat> = db_impl::select(
+    let rooms: Vec<model::Flat> = db::select(
         format!("select id, num, section, floor from {} where {} and {} order by num asc;"
                 , model::Flat::tablename()
                 , section_cond
