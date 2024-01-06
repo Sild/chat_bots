@@ -41,7 +41,7 @@ Feel free to subscribe to receive letters periodically. The selection of recipie
 
 Whether you wish to subscribe or send a letter (must contain at least 5 words), we hope you'll have some fun!
 
-Feel invited to explore the open-source nature of our project. You can freely examine the source code at the following GitHub repository: https://github.com/Sild/chat_bots/tree/master/tg_speaking_from_heart
+You can freely examine the source code at the following GitHub repository: https://github.com/Sild/chat_bots/tree/master/tg_speaking_from_heart
 
 Thank you!
 		`
