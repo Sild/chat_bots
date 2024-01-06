@@ -14,4 +14,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /tg_speaking_from_heart src/*.go
 
 FROM alpine:latest
 COPY --from=go_builder /tg_speaking_from_heart /tg_speaking_from_heart
-CMD ["/tg_spealing_from_heart"]
+CMD ["/tg_speaking_from_heart"]
