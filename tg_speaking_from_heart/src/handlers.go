@@ -105,11 +105,11 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB) error
 		return err
 	}
 
+	// select subscriber
 	subs, err := db.RandomSubscriber()
 	if err != nil {
 		_, err := bot.SendMessage(update.Message.Chat.Id, "No subscribes =(\nPlease try again later", "", update.Message.MessageId, false, false)
 		return err
-
 	}
 	for subs.ChatID == update.Message.Chat.Id {
 		if db.SubsCount() == 1 {
@@ -118,12 +118,20 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB) error
 		}
 		subs, _ = db.RandomSubscriber()
 	}
-	_, err = bot.SendMessage(subs.ChatID, "Your message was sent to somebody...", "", update.Message.MessageId, false, false)
+
+	// send him a message
+	_, err = bot.SendMessage(subs.ChatID, "You got new letter:\n\n"+letter, "", 0, false, false)
 	if err != nil {
 		_, err2 := bot.SendMessage(update.Message.Chat.Id, "Some error happened while we're sending a letter\nPlease try again later", "", update.Message.MessageId, false, false)
 		if err2 != nil {
 			log.Error("Could not send error notification to user. Reason : " + err2.Error())
 		}
+		return err
+	}
+
+	// send confirmation to user
+	_, err = bot.SendMessage(update.Message.Chat.Id, "Your message was sent to somebody...", "", update.Message.MessageId, false, false)
+	if err != nil {
 		return err
 	}
 	return nil
