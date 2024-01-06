@@ -2,7 +2,7 @@ name: build tg_speaking_from_heart
 on:
   push:
     branches: [main]
-    paths: [tg_speaking_from_heart]
+    #paths: [tg_speaking_from_heart]
 jobs:
   build-deploy-speaking-from-heart-docker:
     runs-on: ubuntu-latest
