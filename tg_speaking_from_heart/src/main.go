@@ -2,52 +2,80 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
+	"speaking_from_heart/src/db"
+	"strconv"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/sild/gosk/log"
+
+	"github.com/SakoDroid/telego/v2"
+	"github.com/SakoDroid/telego/v2/configs"
 )
 
-func dumpDB(db *DB) {
-	json, err := db.AsJson()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(json)
+func createBot() (*telego.Bot, error) {
+	token := os.Getenv("SPEAKING_FROM_HEART_TOKEN")
 
+	bot, err := telego.NewBot(configs.Default(token))
+	if err != nil {
+		return nil, err
+	}
+	return bot, nil
 }
 
-
+func createDB(bot *telego.Bot, systemChatID int) (db.DB, error) {
+	return db.NewJsonDB(""), nil
+}
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI("")
+	bot, err := createBot()
 	if err != nil {
-		log.Panic(err)
+		log.Fatal("Could not create bot. Reason : " + err.Error())
 	}
 
-	backupChatId := int64(171246434)
+	systemChatID64, err := strconv.ParseInt(os.Getenv("SPEAKING_FROM_HEART_PRIVATE"), 10, 64)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	systemChatID := int(systemChatID64)
 
-	bot.Send(tgbotapi.NewMessage(backupChatId, "Bot started"))
+	db, err := createDB(bot, systemChatID)
+	if err != nil {
+		log.Fatal("Could not create DB. Reason : " + err.Error())
+	}
 
-	bot.Debug = true
+	for _, handler := range []addHandlerFunc{
+		addStartHandler,
+		addSubsHandler,
+		addUnsubsHandler,
+	} {
+		if err = handler(bot, db); err != nil {
+			log.Fatal("Could not add handler. Reason : " + err.Error())
+		}
+	}
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	if err := bot.Run(false); err != nil {
+		log.Fatal("Could not run the bot. Reason : " + err.Error())
+	}
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+	if _, err = bot.SendMessage(systemChatID, "Bot started", "", 0, false, false); err != nil {
+		log.Fatal("Could not send message to system chat. Reason : " + err.Error())
+	}
 
-	updates := bot.GetUpdatesChan(u)
+	start(bot)
+}
 
-	for update := range updates {
-		if update.Message != nil { // If we got a message
-			fmt.Println(update)
-			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+func start(bot *telego.Bot) {
+	updateChannel, err := bot.AdvancedMode().RegisterChannel("", "message")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			msg.ReplyToMessageID = update.Message.MessageID
-
-			if _, err := bot.Send(msg); err != nil {
-				log.Println("Fail to send message {} to chat {}", msg, update.Message.Chat.ID)
-			}
+	for {
+		update := <-*updateChannel
+		if err := handleUpdate(bot, update); err != nil {
+			log.Error("Could not handle update. Reason : " + err.Error())
 		}
 	}
 }
