@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"speaking_from_heart/src/database"
+	"time"
 
 	"github.com/sild/gosk/log"
 
@@ -36,6 +38,45 @@ func createDB(systemChatID int, dbPath string) (database.DB, error) {
 	}
 	db.AddSubscriber(defaultSubscriber)
 	return db, nil
+}
+
+func dbBackupLoop(bot *telego.Bot, conf *Config) {
+	lastBackupTS := int64(0)
+	lastContent := ""
+	for {
+		time.Sleep(time.Second * 1)
+		curTS := time.Now().Unix()
+		if curTS-lastBackupTS < 60*60*24 {
+			continue
+		}
+
+		dbData, err := os.ReadFile(conf.DBPath)
+		if err != nil {
+			log.Error("Fail to hash backup. Reason : " + err.Error())
+			continue
+		}
+		if lastContent == string(dbData) {
+			log.Debug("Skipping db backup: data didn't change")
+			lastBackupTS = curTS
+			continue
+		}
+
+		mediaSender := bot.SendDocument(conf.SystemChannelID, 0, "db.json", "")
+		file, err := os.Open(conf.DBPath)
+		if err != nil {
+			_, _ = bot.SendMessage(conf.SystemChannelID, "Could not open DB file to make backup. Reason : "+err.Error(), "", 0, false, false)
+			log.Error("Could not open DB file to make backup. Reason : " + err.Error())
+			continue
+		}
+		_, err = mediaSender.SendByFile(file, false, false)
+		if err != nil {
+			_, _ = bot.SendMessage(conf.SystemChannelID, "Fail to send db backup. Reason : "+err.Error(), "", 0, false, false)
+			log.Error("Fail to send db backup. Reason : " + err.Error())
+			continue
+		}
+		lastBackupTS = curTS
+		lastContent = string(dbData)
+	}
 }
 
 func runUpdatesLoop(bot *telego.Bot, db database.DB, conf *Config) {
@@ -73,6 +114,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not create bot. Reason : " + err.Error())
 	}
+
+	go dbBackupLoop(bot, conf)
 
 	if err := bot.Run(false); err != nil {
 		log.Fatal("Could not run the bot. Reason : " + err.Error())
