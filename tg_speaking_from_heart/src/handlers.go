@@ -151,6 +151,7 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB) error
 	}
 
 	// send confirmation to user
+	db.IncMsgSent()
 	_, err = bot.SendMessage(update.Message.Chat.Id, "Your message was sent to somebody...", "", update.Message.MessageId, false, false)
 	if err != nil {
 		return err
