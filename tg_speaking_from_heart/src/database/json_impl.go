@@ -60,13 +60,14 @@ func (db *jsonDB) AddSubscriber(subs Subscriber) {
 func (db *jsonDB) RemoveSubscriber(subs Subscriber) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
+
 	for i, s := range db.Subscribers {
 		if s == subs {
 			db.Subscribers = append(db.Subscribers[:i], db.Subscribers[i+1:]...)
+			db.save()
 			return
 		}
 	}
-	db.save()
 }
 
 func (db *jsonDB) IsSubscriber(subs Subscriber) bool {
