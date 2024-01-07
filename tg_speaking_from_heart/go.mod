@@ -13,4 +13,7 @@ require (
 	github.com/rs/zerolog v1.31.0 // indirect
 )
 
-require golang.org/x/sys v0.15.0 // indirect
+require (
+	github.com/sethvargo/go-envconfig v0.9.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+)

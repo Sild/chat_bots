@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -11,14 +12,24 @@ import (
 )
 
 type jsonDB struct {
+	DBPath      string       `json:"-"`
 	Subscribers []Subscriber `json:"subscribers"`
 	MsgsSent    atomic.Int64 `json:"msgs_sent"`
 	mtx         *sync.Mutex  `json:"-"`
 }
 
-func NewJsonDB(jsonData string) DB {
+func NewJsonDB(dbPath string) DB {
+	data, err := os.ReadFile(dbPath)
+	if err != nil {
+		log.Error("Fail to read dbPath=%s: %v. Will use empty data instead.", dbPath, err)
+		data = make([]byte, 0)
+	}
+
+	jsonData := string(data)
+
 	if jsonData == "" {
 		return &jsonDB{
+			DBPath:      dbPath,
 			Subscribers: []Subscriber{},
 			MsgsSent:    atomic.Int64{},
 			mtx:         &sync.Mutex{},
@@ -27,6 +38,11 @@ func NewJsonDB(jsonData string) DB {
 	db := serial.JsonSToObj[jsonDB](jsonData)
 	db.mtx = &sync.Mutex{}
 	return &db
+}
+
+func (db *jsonDB) save() {
+	log.Trace("Saving db to %s", db.DBPath)
+	serial.ObjToJsonF(db, db.DBPath)
 }
 
 func (db *jsonDB) AddSubscriber(subs Subscriber) {
@@ -38,6 +54,7 @@ func (db *jsonDB) AddSubscriber(subs Subscriber) {
 		}
 	}
 	db.Subscribers = append(db.Subscribers, subs)
+	db.save()
 }
 
 func (db *jsonDB) RemoveSubscriber(subs Subscriber) {
@@ -49,6 +66,7 @@ func (db *jsonDB) RemoveSubscriber(subs Subscriber) {
 			return
 		}
 	}
+	db.save()
 }
 
 func (db *jsonDB) IsSubscriber(subs Subscriber) bool {
@@ -75,6 +93,9 @@ func (db *jsonDB) RandomSubscriber() (Subscriber, error) {
 
 func (db *jsonDB) IncMsgSent() {
 	db.MsgsSent.Add(1)
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+	db.save()
 }
 
 func (db *jsonDB) MsgSentCount() int {
