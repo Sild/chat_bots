@@ -22,6 +22,7 @@ func createBot(tgToken string, db database.DB) (*telego.Bot, error) {
 		addStartHandler,
 		addSubsHandler,
 		addUnsubsHandler,
+		addStatsHandler,
 	} {
 		if err = handler(bot, db); err != nil {
 			log.Fatal("Could not add handler. Reason : " + err.Error())

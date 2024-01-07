@@ -17,6 +17,7 @@ func addKeyboard(bot *telego.Bot, subs database.Subscriber, db database.DB) tele
 		text = "/unsubscribe"
 	}
 	kb.AddButton(text, 1)
+	kb.AddButton("/stats", 1)
 	return kb
 }
 
@@ -86,6 +87,27 @@ func addUnsubsHandler(bot *telego.Bot, db database.DB) error {
 		keyboard := addKeyboard(bot, subs, db)
 
 		text := fmt.Sprintf("You're unsubscribed =(\nSubscribers count: %d", db.SubsCount())
+
+		_, err := bot.AdvancedMode().ASendMessage(u.Message.Chat.Id, text, "", u.Message.MessageId, 0, false, false, nil, false, false, keyboard)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}, "private")
+}
+
+func addStatsHandler(bot *telego.Bot, db database.DB) error {
+	return bot.AddHandler("/stats", func(u *objects.Update) {
+		if u.Message == nil || u.Message.Chat == nil {
+			return
+		}
+		subs := database.Subscriber{
+			ChatID: u.Message.Chat.Id,
+		}
+		db.RemoveSubscriber(subs)
+
+		keyboard := addKeyboard(bot, subs, db)
+
+		text := fmt.Sprintf("Subscribers count: %d\nLetters sent: %d", db.SubsCount(), db.MsgSentCount())
 
 		_, err := bot.AdvancedMode().ASendMessage(u.Message.Chat.Id, text, "", u.Message.MessageId, 0, false, false, nil, false, false, keyboard)
 		if err != nil {
