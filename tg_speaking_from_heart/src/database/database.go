@@ -9,7 +9,7 @@ type DB interface {
 	IsSubscriber(subs Subscriber) bool
 	RandomSubscriber() (Subscriber, error)
 	IncMsgSent()
-	MsgSentCount() int
+	MsgSentCount() uint64
 	SubsCount() int
 	AsJson() string
 }

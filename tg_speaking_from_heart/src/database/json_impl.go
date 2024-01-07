@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"sync"
-	"sync/atomic"
 
 	"github.com/sild/gosk/log"
 	"github.com/sild/gosk/serial"
@@ -14,7 +13,7 @@ import (
 type jsonDB struct {
 	DBPath      string       `json:"-"`
 	Subscribers []Subscriber `json:"subscribers"`
-	MsgsSent    atomic.Int64 `json:"msgs_sent"`
+	MsgsSent    uint64       `json:"msgs_sent"`
 	mtx         *sync.Mutex  `json:"-"`
 }
 
@@ -31,7 +30,7 @@ func NewJsonDB(dbPath string) DB {
 		return &jsonDB{
 			DBPath:      dbPath,
 			Subscribers: []Subscriber{},
-			MsgsSent:    atomic.Int64{},
+			MsgsSent:    0,
 			mtx:         &sync.Mutex{},
 		}
 	}
@@ -94,14 +93,14 @@ func (db *jsonDB) RandomSubscriber() (Subscriber, error) {
 }
 
 func (db *jsonDB) IncMsgSent() {
-	db.MsgsSent.Add(1)
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
+	db.MsgsSent++
 	db.save()
 }
 
-func (db *jsonDB) MsgSentCount() int {
-	return int(db.MsgsSent.Load())
+func (db *jsonDB) MsgSentCount() uint64 {
+	return db.MsgsSent
 }
 
 func (db *jsonDB) SubsCount() int {
