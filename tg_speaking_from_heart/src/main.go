@@ -25,7 +25,7 @@ func createBot(tgToken string, db database.DB) (*telego.Bot, error) {
 		addStatsHandler,
 	} {
 		if err = handler(bot, db); err != nil {
-			log.Fatal("Could not add handler. Reason : " + err.Error())
+			log.Panic("Could not add handler. Reason : " + err.Error())
 		}
 	}
 
@@ -83,7 +83,7 @@ func dbBackupLoop(bot *telego.Bot, conf *Config) {
 func runUpdatesLoop(bot *telego.Bot, db database.DB, conf *Config) {
 	text := fmt.Sprintf("Bot started\nSubscribers count: %d\nMsgSent count: %d", db.SubsCount(), db.MsgSentCount())
 	if _, err := bot.SendMessage(conf.SystemChannelID, text, "", 0, false, false); err != nil {
-		log.Fatal("Could not send message to system chat. Reason : " + err.Error())
+		log.Panic("Could not send message to system chat. Reason : " + err.Error())
 	}
 
 	updateChannel, err := bot.AdvancedMode().RegisterChannel("", "message")
@@ -103,23 +103,23 @@ func runUpdatesLoop(bot *telego.Bot, db database.DB, conf *Config) {
 func main() {
 	conf, err := NewConfigFromEnv()
 	if err != nil {
-		log.Fatal("Could not create config. Reason : " + err.Error())
+		log.Panic("Could not create config. Reason : " + err.Error())
 	}
 
 	db, err := createDB(conf.SystemChannelID, conf.DBPath)
 	if err != nil {
-		log.Fatal("Could not create DB. Reason : " + err.Error())
+		log.Panic("Could not create DB. Reason : " + err.Error())
 	}
 
 	bot, err := createBot(conf.TgToken, db)
 	if err != nil {
-		log.Fatal("Could not create bot. Reason : " + err.Error())
+		log.Panic("Could not create bot. Reason : " + err.Error())
 	}
 
 	go dbBackupLoop(bot, conf)
 
 	if err := bot.Run(false); err != nil {
-		log.Fatal("Could not run the bot. Reason : " + err.Error())
+		log.Panic("Could not run the bot. Reason : " + err.Error())
 	}
 
 	runUpdatesLoop(bot, db, conf)
