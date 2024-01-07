@@ -36,6 +36,7 @@ func NewJsonDB(dbPath string) DB {
 		}
 	}
 	db := serial.JsonSToObj[jsonDB](jsonData)
+	db.DBPath = dbPath
 	db.mtx = &sync.Mutex{}
 	return &db
 }
