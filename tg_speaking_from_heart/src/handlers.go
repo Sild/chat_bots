@@ -103,7 +103,6 @@ func addStatsHandler(bot *telego.Bot, db database.DB) error {
 		subs := database.Subscriber{
 			ChatID: u.Message.Chat.Id,
 		}
-		db.RemoveSubscriber(subs)
 
 		keyboard := addKeyboard(bot, subs, db)
 
