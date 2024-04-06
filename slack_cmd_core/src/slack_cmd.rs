@@ -133,8 +133,10 @@ fn build_socket_listener(state: State) -> Result<SlackClientSocketModeListener<S
 }
 
 pub async fn run(socket_token: &str, state: State) -> Result<()> {
-    let subscriber = tracing_subscriber::fmt().with_env_filter("slack_morphism=debug").finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+    if log::max_level() >= log::Level::Debug {
+        let subscriber = tracing_subscriber::fmt().with_env_filter("slack_morphism=debug").finish();
+        tracing::subscriber::set_global_default(subscriber)?;
+    }
 
     let socket_listener = build_socket_listener(state)?;
     socket_listener.listen_for(&SlackApiToken::new(socket_token.into())).await?;
