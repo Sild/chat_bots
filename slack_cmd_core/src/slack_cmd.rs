@@ -1,23 +1,12 @@
 use crate::config_env_var;
 use crate::handler::Handler;
-use crate::slack_helper::SlackHelper;
 use crate::state::State;
 use anyhow::Result;
-use slack_morphism::api::{SlackApiTestRequest, SlackApiUsersInfoRequest};
-use slack_morphism::events::{
-    SlackCommandEvent, SlackCommandEventResponse, SlackEventCallbackBody, SlackInteractionEvent,
-    SlackPushEventCallback,
-};
-use slack_morphism::hyper_tokio::{SlackClientHyperConnector, SlackHyperClient};
-use slack_morphism::listener::{
-    HttpStatusCode, SlackClientEventsListenerEnvironment, SlackClientEventsUserState,
-};
-use slack_morphism::prelude::*;
-use slack_morphism::{
-    SlackApiToken, SlackApiTokenValue, SlackClient, SlackClientSocketModeListener,
-    SlackMessageContent, SlackSocketModeListenerCallbacks,
-};
+
+
 use std::sync::Arc;
+use slack_morphism::prelude::{HttpStatusCode, SlackApiTestRequest, SlackApiUsersInfoRequest, SlackClientEventsListenerEnvironment, SlackClientEventsUserState, SlackClientHyperConnector, SlackCommandEvent, SlackCommandEventResponse, SlackEventCallbackBody, SlackHyperClient, SlackInteractionEvent, SlackPushEventCallback};
+use slack_morphism::{SlackApiToken, SlackApiTokenValue, SlackClient, SlackClientSocketModeConfig, SlackClientSocketModeListener, SlackMessageContent, SlackSocketModeListenerCallbacks};
 use tokio::sync::RwLock;
 
 // inspired by https://github.com/abdolence/slack-morphism-rust/blob/master/examples/socket_mode.rs
@@ -39,7 +28,7 @@ async fn commands_dispatcher(
     log::trace!("got new command: {:#?}", event);
 
     let token_value: SlackApiTokenValue = config_env_var("SLACK_TEST_TOKEN")?.into();
-    let token: SlackApiToken = SlackApiToken::new(token_value);
+    let token = SlackApiToken::new(token_value);
 
     // Sessions are lightweight and basically just a reference to client and token
     let session = client.open_session(&token);
@@ -56,7 +45,7 @@ async fn commands_dispatcher(
 
     Ok(SlackCommandEventResponse::new(
         SlackMessageContent::new()
-            .with_text(format!("Working on it: {:#?}", user_info_resp.user.team_id).into()),
+            .with_text(format!("Working on it: {:#?}", user_info_resp.user.team_id)),
     ))
 }
 

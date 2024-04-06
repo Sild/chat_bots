@@ -1,5 +1,5 @@
 use crate::state::State;
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 
 mod handler;
 mod slack_cmd;

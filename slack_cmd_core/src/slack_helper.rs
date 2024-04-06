@@ -1,16 +1,14 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use slack_morphism::api::{
-    SlackApiBotsInfoRequest, SlackApiChatDeleteRequest, SlackApiChatPostMessageRequest,
-    SlackApiChatPostMessageResponse, SlackApiUsersInfoRequest,
+    SlackApiBotsInfoRequest, SlackApiChatDeleteRequest, SlackApiChatPostMessageRequest, SlackApiUsersInfoRequest,
 };
 use slack_morphism::prelude::{
-    SlackApiBotsInfoResponse, SlackClientHyperConnector, SlackClientHyperHttpsConnector,
+    SlackClientHyperConnector, SlackClientHyperHttpsConnector,
 };
 use slack_morphism::{
-    SlackApiToken, SlackBotInfo, SlackChannelId, SlackClient, SlackClientSession, SlackDateTime,
-    SlackMessage, SlackMessageContent, SlackTs, SlackUser, SlackUserId,
+    SlackApiToken, SlackChannelId, SlackClient, SlackClientSession,
+    SlackMessage, SlackMessageContent, SlackTs, SlackUser,
 };
-use tracing::instrument::WithSubscriber;
 use tracing::log;
 
 pub struct SlackHelper {
@@ -45,12 +43,11 @@ impl SlackHelper {
     pub async fn get_message(&self, _channel: &SlackChannelId, msg_ts: &SlackTs) -> Result<()> {
         let session = self.client.open_session(&self.token);
         todo!();
-        Ok(())
     }
 
     pub async fn delete_msg(&self, channel: &SlackChannelId, msg_ts: &SlackTs) -> Result<()> {
         let req = SlackApiChatDeleteRequest::new(channel.clone(), msg_ts.clone());
-        return match self.get_session().chat_delete(&req).await {
+        match self.get_session().chat_delete(&req).await {
             Ok(_) => Ok(()),
             Err(err) => {
                 log::error!(
@@ -59,7 +56,7 @@ impl SlackHelper {
                 );
                 Err(anyhow!(err))
             }
-        };
+        }
     }
 
     pub async fn send_msg(&self, channel: &SlackChannelId, msg: &str) -> Result<()> {
@@ -110,7 +107,7 @@ impl SlackHelper {
         if let Some(thread_ts) = thread_ts {
             req = req.with_thread_ts(thread_ts.clone());
         }
-        return match self.get_session().chat_post_message(&req).await {
+        match self.get_session().chat_post_message(&req).await {
             Ok(_) => Ok(()),
             Err(err) => {
                 log::error!(
@@ -119,6 +116,6 @@ impl SlackHelper {
                 );
                 Err(anyhow!(err))
             }
-        };
+        }
     }
 }
