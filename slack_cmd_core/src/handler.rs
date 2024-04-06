@@ -1,21 +1,12 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-// use async_trait::async_trait;
 
-pub trait CliMock {}
-
-// #[async_trait]
 pub trait Handler {
     fn name(&self) -> String;
     fn short_description(&self) -> String;
     fn supported_channels(&self) -> Vec<String>;
-    fn handle(
-        &self,
-        socket_cli: &dyn CliMock,
-        web_cli: &dyn CliMock,
-        args: Vec<String>,
-    ) -> Result<()>;
+    fn handle(&self, args: Vec<String>) -> Result<()>;
 }
 
 struct DefaultHelpHandler {
@@ -36,10 +27,6 @@ impl DefaultHelpHandler {
     }
 }
 
-// unsafe impl Send for DefaultHelpHandler {}
-// unsafe impl Send for DefaultHelpHandler {}
-
-// #[async_trait]
 impl Handler for DefaultHelpHandler {
     fn name(&self) -> String {
         self.name.clone()
@@ -50,12 +37,7 @@ impl Handler for DefaultHelpHandler {
     fn supported_channels(&self) -> Vec<String> {
         self.supported_channels.clone()
     }
-    fn handle(
-        &self,
-        _socket_cli: &dyn CliMock,
-        _web_cli: &dyn CliMock,
-        _args: Vec<String>,
-    ) -> Result<()> {
+    fn handle(&self, _args: Vec<String>) -> Result<()> {
         println!("{}: {}", self.name, self.short_description);
         // for handler in &self.available_handlers {
         //     let handler = handler.read().await;
