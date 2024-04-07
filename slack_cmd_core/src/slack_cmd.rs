@@ -1,5 +1,6 @@
+use std::ops::Deref;
 use crate::config_env_var;
-use crate::handler::Handler;
+use crate::handler::MessageHandler;
 use crate::state::State;
 use anyhow::Result;
 
@@ -17,38 +18,38 @@ use tokio::sync::RwLock;
 
 // inspired by https://github.com/abdolence/slack-morphism-rust/blob/master/examples/socket_mode.rs
 
-async fn interactions_dispatcher(
-    event: SlackInteractionEvent,
-    _client: Arc<SlackHyperClient>,
-    _states: SlackClientEventsUserState,
-) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    log::trace!("got new interaction event: {:#?}", event);
-    Ok(())
-}
+// async fn interactions_dispatcher(
+//     event: SlackInteractionEvent,
+//     _client: Arc<SlackHyperClient>,
+//     _states: SlackClientEventsUserState,
+// ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
+//     log::trace!("got new interaction event: {:#?}", event);
+//     Ok(())
+// }
 
-async fn commands_dispatcher(
-    event: SlackCommandEvent,
-    client: Arc<SlackHyperClient>,
-    _states: SlackClientEventsUserState,
-) -> std::result::Result<SlackCommandEventResponse, Box<dyn std::error::Error + Send + Sync>> {
-    log::trace!("got new command: {:#?}", event);
-
-    let token_value: SlackApiTokenValue = config_env_var("SLACK_TEST_TOKEN")?.into();
-    let token = SlackApiToken::new(token_value);
-
-    // Sessions are lightweight and basically just a reference to client and token
-    let session = client.open_session(&token);
-
-    session.api_test(&SlackApiTestRequest::new().with_foo("Test".into())).await?;
-
-    let user_info_resp = session.users_info(&SlackApiUsersInfoRequest::new(event.user_id.clone())).await?;
-
-    println!("{:#?}", user_info_resp);
-
-    Ok(SlackCommandEventResponse::new(SlackMessageContent::new().with_text(
-        format!("Working on it: {:#?}", user_info_resp.user.team_id),
-    )))
-}
+// async fn commands_dispatcher(
+//     event: SlackCommandEvent,
+//     client: Arc<SlackHyperClient>,
+//     _states: SlackClientEventsUserState,
+// ) -> std::result::Result<SlackCommandEventResponse, Box<dyn std::error::Error + Send + Sync>> {
+//     log::trace!("got new command: {:#?}", event);
+//
+//     let token_value: SlackApiTokenValue = config_env_var("SLACK_TEST_TOKEN")?.into();
+//     let token = SlackApiToken::new(token_value);
+//
+//     // Sessions are lightweight and basically just a reference to client and token
+//     let session = client.open_session(&token);
+//
+//     session.api_test(&SlackApiTestRequest::new().with_foo("Test".into())).await?;
+//
+//     let user_info_resp = session.users_info(&SlackApiUsersInfoRequest::new(event.user_id.clone())).await?;
+//
+//     println!("{:#?}", user_info_resp);
+//
+//     Ok(SlackCommandEventResponse::new(SlackMessageContent::new().with_text(
+//         format!("Working on it: {:#?}", user_info_resp.user.team_id),
+//     )))
+// }
 
 async fn push_events_dispatcher(
     event: SlackPushEventCallback,
@@ -74,14 +75,28 @@ async fn push_events_dispatcher(
     let state_lock = state.read().await;
     let state = state_lock.get_user_state::<State>().unwrap();
 
-    let msg_body = message.content.as_ref().unwrap().text.as_ref().unwrap();
+    let mut msg_body = message.content.as_ref().unwrap().text.as_ref().unwrap();
 
     // ignore non-bot messages
     // TODO implement free_reply handler for the other cases
-    if !msg_body.starts_with(format!("<@{}>", state.bot_info.user_id).as_str()) {
+    if !msg_body.starts_with(state.bot_marker.as_str()) {
         log::trace!("event was ignored as non-related to the bot");
         return Ok(());
     }
+
+    let msg_body = msg_body.strip_prefix(state.bot_marker.as_str()).unwrap();
+    let handler = msg_body.split(' ').next().unwrap_or("help");
+    match handler {
+        "help" if state.default_helper.is_some() => {
+            let slack_helper = state.slack_helper.read().await;
+            state.default_helper.as_ref().unwrap().handle(slack_helper.deref(), message.clone(), vec![]).await?;
+            return Ok(())
+        }
+
+        _ => {
+        }
+    }
+
 
     let channel_id = message.origin.channel.as_ref().unwrap();
     let thread_ts = message.origin.thread_ts.as_ref().unwrap_or(&message.origin.ts);
@@ -114,8 +129,8 @@ fn error_handler(
 
 fn build_socket_listener(state: State) -> Result<SlackClientSocketModeListener<SlackClientHyperHttpsConnector>> {
     let socket_mode_callbacks = SlackSocketModeListenerCallbacks::new()
-        .with_command_events(commands_dispatcher)
-        .with_interaction_events(interactions_dispatcher)
+        // .with_command_events(commands_dispatcher)
+        // .with_interaction_events(interactions_dispatcher)
         .with_push_events(push_events_dispatcher);
 
     let client = Arc::new(SlackClient::new(SlackClientHyperConnector::new()?));

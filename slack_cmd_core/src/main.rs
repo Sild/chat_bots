@@ -15,8 +15,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::init();
     let oauth_token = config_env_var("SLACK_CMD_OAUTH_TOKEN")?;
     let socket_token = config_env_var("SLACK_CMD_SOCKET_TOKEN")?;
-    let mut state = State::new(oauth_token.as_str()).await?;
-    state.add_handlers(vec![]);
+    let mut state = State::new_with_default_helper(oauth_token.as_str()).await?;
+    state.add_handlers(vec![
+
+    ]);
     slack_cmd::run(socket_token.as_str(), state).await?;
     Ok(())
 }
