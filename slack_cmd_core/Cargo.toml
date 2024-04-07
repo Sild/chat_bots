@@ -1,7 +1,17 @@
 [package]
 name = "slack_cmd_core"
 version = "0.1.0"
+authors = ["Sild <sildtm@icloud.com>"]
 edition = "2021"
+keywords = ["slack", "app", "cmd", "handler"]
+readme = "README.md"
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lib]
+name = "slack_cmd_core"
+path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1.0.44"
@@ -14,3 +24,7 @@ chrono = "0.4.37"
 rsb_derive = "0.5.1"
 env_logger = "0.11.2"
 log = "0.4.21"
+
+[[example]]
+name = "cmd_jira"
+path = "examples/cmd_jira.rs"

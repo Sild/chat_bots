@@ -1,9 +1,9 @@
 use crate::slack_helper::SlackHelper;
-use crate::state::HandlerState;
+use crate::state::HandlerContext;
 use anyhow::Result;
 use async_trait::async_trait;
 use slack_morphism::events::SlackMessageEvent;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -11,20 +11,22 @@ use tokio::sync::RwLock;
 pub trait MessageHandler: Send + Sync {
     fn name(&self) -> &str;
     fn short_description(&self) -> &str;
-    fn supported_channels(&self) -> &Vec<String>;
+    fn supported_channels(&self) -> &HashSet<String>;
     async fn handle<'a>(
         &self,
-        handler_state: HandlerState<'a>,
+        context: HandlerContext<'a>,
         slack_helper: &SlackHelper,
         msg_event: SlackMessageEvent,
         args: Vec<String>,
     ) -> Result<()>;
 }
 
+pub const ALL_CHANNELS: &str = "*";
+
 pub type MessageHandlerPtr = Arc<RwLock<Box<dyn MessageHandler>>>;
 
 pub(crate) struct DefaultHelpHandler {
-    supported_channels: Vec<String>,
+    supported_channels: HashSet<String>,
     channels_help_info: HashMap<String, Vec<String>>,
     all_channels_help_info: Vec<String>,
 }
@@ -39,13 +41,13 @@ impl MessageHandler for DefaultHelpHandler {
         "Prints this help message"
     }
 
-    fn supported_channels(&self) -> &Vec<String> {
-        self.supported_channels.as_ref()
+    fn supported_channels(&self) -> &HashSet<String> {
+        &self.supported_channels
     }
 
     async fn handle<'a>(
         &self,
-        _handler_state: HandlerState<'a>,
+        _context: HandlerContext<'a>,
         slack_helper: &SlackHelper,
         msg_event: SlackMessageEvent,
         args: Vec<String>,
@@ -79,7 +81,7 @@ impl MessageHandler for DefaultHelpHandler {
 impl DefaultHelpHandler {
     pub fn new() -> Self {
         Self {
-            supported_channels: vec!["*".to_string()],
+            supported_channels: HashSet::from([ALL_CHANNELS.to_string()]),
             channels_help_info: HashMap::new(),
             all_channels_help_info: vec![],
         }
@@ -88,7 +90,7 @@ impl DefaultHelpHandler {
     pub fn add_handler(&mut self, handler: &Box<dyn MessageHandler>) {
         for channel in handler.supported_channels().iter() {
             match channel.as_ref() {
-                "*" => {
+                ALL_CHANNELS => {
                     self.all_channels_help_info.push(format!("`{}`: {}", handler.name(), handler.short_description()))
                 }
                 _ => {
@@ -101,41 +103,52 @@ impl DefaultHelpHandler {
     }
 }
 
-pub(crate) struct JiraHandler {
-    host: String,
-    token: String,
-    supported_channels: Vec<String>,
-}
+pub mod handlers {
+    use std::collections::HashSet;
+    use std::sync::Arc;
+    use async_trait::async_trait;
+    use slack_morphism::prelude::SlackMessageEvent;
+    use crate::{ALL_CHANNELS, HandlerContext, MessageHandler};
+    use crate::slack_helper::SlackHelper;
+    use anyhow::Result;
+    use tokio::sync::RwLock;
 
-#[async_trait]
-impl MessageHandler for JiraHandler {
-    fn name(&self) -> &str {
-        "jira"
+    pub struct JiraHandler {
+        host: String,
+        token: String,
+        supported_channels: HashSet<String>,
     }
-    fn short_description(&self) -> &str {
-        "create jira ticket"
-    }
-    fn supported_channels(&self) -> &Vec<String> {
-        self.supported_channels.as_ref()
-    }
-    async fn handle<'a>(
-        &self,
-        _handler_state: HandlerState<'a>,
-        _slack_helper: &SlackHelper,
-        _msg_event: SlackMessageEvent,
-        _: Vec<String>,
-    ) -> Result<()> {
-        log::info!("Eventually I'll create jira ticket here");
-        Ok(())
-    }
-}
 
-impl JiraHandler {
-    pub fn new(host: &str, token: &str) -> Self {
-        Self {
-            host: host.into(),
-            token: token.into(),
-            supported_channels: vec!["*".to_string()],
+    #[async_trait]
+    impl MessageHandler for JiraHandler {
+        fn name(&self) -> &str {
+            "jira"
+        }
+        fn short_description(&self) -> &str {
+            "create jira ticket"
+        }
+        fn supported_channels(&self) -> &HashSet<String> {
+            &self.supported_channels
+        }
+        async fn handle<'a>(
+            &self,
+            _context: HandlerContext<'a>,
+            _slack_helper: &SlackHelper,
+            _msg_event: SlackMessageEvent,
+            _: Vec<String>,
+        ) -> Result<()> {
+            log::info!("Eventually I'll create jira ticket here");
+            Ok(())
+        }
+    }
+
+    impl JiraHandler {
+        pub fn new(host: &str, token: &str, supported_channels: HashSet<String>) -> Arc<RwLock<Box<dyn MessageHandler>>> {
+            Arc::new(RwLock::new(Box::new(Self {
+                host: host.into(),
+                token: token.into(),
+                supported_channels,
+            })))
         }
     }
 }

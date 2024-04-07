@@ -1,6 +1,5 @@
-use crate::config_env_var;
 use crate::handler::{DefaultHelpHandler, MessageHandler, MessageHandlerPtr};
-use crate::state::{HandlerState, State};
+use crate::state::{HandlerContext, Context};
 use anyhow::Result;
 use std::ops::Deref;
 
@@ -72,31 +71,31 @@ async fn push_events_dispatcher(
             return Ok(());
         }
     };
-    let state_lock = state.read().await;
-    let state = state_lock.get_user_state::<State>().unwrap();
+    let context_lock = state.read().await;
+    let context = context_lock.get_user_state::<Context>().unwrap();
 
     let mut msg_body = message.content.as_ref().unwrap().text.as_ref().unwrap();
 
     // ignore non-bot messages
     // TODO implement free_reply handler for the other cases
-    if !msg_body.starts_with(state.bot_marker.as_str()) {
+    if !msg_body.starts_with(context.bot_marker.as_str()) {
         log::trace!("event was ignored as non-related to the bot");
         return Ok(());
     }
 
-    let msg_body = msg_body.strip_prefix(state.bot_marker.as_str()).unwrap();
+    let msg_body = msg_body.strip_prefix(context.bot_marker.as_str()).unwrap().trim();
 
     let channel_id = message.origin.channel.as_ref().unwrap();
 
     let handler_name = msg_body.split(' ').next().unwrap_or("help");
-    let slack_helper = state.slack_helper.read().await;
-    match state.get_message_handler(channel_id, handler_name) {
+    let slack_helper = context.slack_helper.read().await;
+    match context.get_message_handler(channel_id, handler_name) {
         Some(handler) => {
             handler
                 .read()
                 .await
                 .handle(
-                    state.into(),
+                    context.into(),
                     slack_helper.deref(),
                     message.clone(),
                     vec![handler_name.into()],
@@ -105,10 +104,10 @@ async fn push_events_dispatcher(
             return Ok(());
         }
         None => {
-            state
+            context
                 .default_help_handler
                 .handle(
-                    state.into(),
+                    context.into(),
                     slack_helper.deref(),
                     message.clone(),
                     vec![handler_name.into()],
@@ -128,7 +127,7 @@ fn error_handler(
     HttpStatusCode::OK
 }
 
-fn build_socket_listener(state: State) -> Result<SlackClientSocketModeListener<SlackClientHyperHttpsConnector>> {
+fn build_socket_listener(state: Context) -> Result<SlackClientSocketModeListener<SlackClientHyperHttpsConnector>> {
     let socket_mode_callbacks = SlackSocketModeListenerCallbacks::new()
         // .with_command_events(commands_dispatcher)
         // .with_interaction_events(interactions_dispatcher)
@@ -154,7 +153,7 @@ pub async fn run(oauth_token: &str, socket_token: &str, message_handlers: Vec<Me
         tracing::subscriber::set_global_default(subscriber)?;
     }
 
-    let mut state = State::new(oauth_token).await?;
+    let mut state = Context::new(oauth_token).await?;
     state.add_handlers(message_handlers).await?;
 
     let socket_listener = build_socket_listener(state)?;
