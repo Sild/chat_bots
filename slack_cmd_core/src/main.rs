@@ -1,5 +1,8 @@
+use crate::handler::JiraHandler;
 use crate::state::State;
 use anyhow::Result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 mod handler;
 mod slack_cmd;
@@ -15,10 +18,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::init();
     let oauth_token = config_env_var("SLACK_CMD_OAUTH_TOKEN")?;
     let socket_token = config_env_var("SLACK_CMD_SOCKET_TOKEN")?;
-    let mut state = State::new_with_default_helper(oauth_token.as_str()).await?;
-    state.add_handlers(vec![
-
-    ]);
-    slack_cmd::run(socket_token.as_str(), state).await?;
+    slack_cmd::run(
+        oauth_token.as_str(),
+        socket_token.as_str(),
+        vec![Arc::new(RwLock::new(Box::new(JiraHandler::new("123", "345"))))],
+    )
+    .await?;
     Ok(())
 }

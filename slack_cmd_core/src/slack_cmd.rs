@@ -1,8 +1,8 @@
-use std::ops::Deref;
 use crate::config_env_var;
-use crate::handler::MessageHandler;
-use crate::state::State;
+use crate::handler::{DefaultHelpHandler, MessageHandler, MessageHandlerPtr};
+use crate::state::{HandlerState, State};
 use anyhow::Result;
+use std::ops::Deref;
 
 use slack_morphism::prelude::{
     HttpStatusCode, SlackApiTestRequest, SlackApiUsersInfoRequest, SlackClientEventsListenerEnvironment,
@@ -85,35 +85,36 @@ async fn push_events_dispatcher(
     }
 
     let msg_body = msg_body.strip_prefix(state.bot_marker.as_str()).unwrap();
-    let handler = msg_body.split(' ').next().unwrap_or("help");
-    match handler {
-        "help" if state.default_helper.is_some() => {
-            let slack_helper = state.slack_helper.read().await;
-            state.default_helper.as_ref().unwrap().handle(slack_helper.deref(), message.clone(), vec![]).await?;
-            return Ok(())
-        }
-
-        _ => {
-        }
-    }
-
 
     let channel_id = message.origin.channel.as_ref().unwrap();
-    let thread_ts = message.origin.thread_ts.as_ref().unwrap_or(&message.origin.ts);
-    if msg_body.contains("reply") {
-        state
-            .slack_helper
-            .read()
-            .await
-            .send_reply(channel_id, thread_ts, "reply for Hey there! I'm a bot! Try `!test`")
-            .await?;
-    } else {
-        state
-            .slack_helper
-            .read()
-            .await
-            .send_msg(channel_id, "reply for Hey there! I'm a bot! Try `!test`")
-            .await?;
+
+    let handler_name = msg_body.split(' ').next().unwrap_or("help");
+    let slack_helper = state.slack_helper.read().await;
+    match state.get_message_handler(channel_id, handler_name) {
+        Some(handler) => {
+            handler
+                .read()
+                .await
+                .handle(
+                    state.into(),
+                    slack_helper.deref(),
+                    message.clone(),
+                    vec![handler_name.into()],
+                )
+                .await?;
+            return Ok(());
+        }
+        None => {
+            state
+                .default_help_handler
+                .handle(
+                    state.into(),
+                    slack_helper.deref(),
+                    message.clone(),
+                    vec![handler_name.into()],
+                )
+                .await?;
+        }
     }
     Ok(())
 }
@@ -147,11 +148,14 @@ fn build_socket_listener(state: State) -> Result<SlackClientSocketModeListener<S
     ))
 }
 
-pub async fn run(socket_token: &str, state: State) -> Result<()> {
+pub async fn run(oauth_token: &str, socket_token: &str, message_handlers: Vec<MessageHandlerPtr>) -> Result<()> {
     if log::max_level() >= log::Level::Debug {
         let subscriber = tracing_subscriber::fmt().with_env_filter("slack_morphism=debug").finish();
         tracing::subscriber::set_global_default(subscriber)?;
     }
+
+    let mut state = State::new(oauth_token).await?;
+    state.add_handlers(message_handlers).await?;
 
     let socket_listener = build_socket_listener(state)?;
     socket_listener.listen_for(&SlackApiToken::new(socket_token.into())).await?;
