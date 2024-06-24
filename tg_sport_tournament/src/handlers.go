@@ -9,8 +9,13 @@ import (
 	"github.com/sild/gosk/log"
 )
 
-func addKeyboard(bot *telego.Bot, db database.DB) telego.MarkUps {
-	kb := bot.CreateKeyboard(true, true, true, false, "prizes are waiting for you ...")
+func addKeyboard(bot *telego.Bot, db database.DB, state *AppState, username string) telego.MarkUps {
+	selectedActivity := state.GetActivity(username)
+	text := "Выбери активность ..."
+	if selectedActivity != "" {
+		text = fmt.Sprintf("Ты выбрал '%s', теперь напиши отчет ...", selectedActivity)
+	}
+	kb := bot.CreateKeyboard(true, true, true, false, text)
 	for k := range db.GetActivities() {
 		kb.AddButton(k, 1)
 	}
@@ -24,9 +29,8 @@ func addStartHandler(bot *telego.Bot, db database.DB, state *AppState) error {
 		if update.Message == nil || update.Message.Chat == nil || update.Message.Chat.Username == "" {
 			return
 		}
-		keyboard := addKeyboard(bot, db)
 		text := `Привет, пес! Что сделал сегодня? Выбери активность а затем напиши отчет.`
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
+		err := sendMessage(bot, update, db, state, text)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -46,8 +50,8 @@ func addShowTeamsHandler(bot *telego.Bot, db database.DB, state *AppState) error
 			}
 			text += fmt.Sprintf("Team: %s\nMembers:\n%s\n", tName, members)
 		}
-		keyboard := addKeyboard(bot, db)
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
+		
+		err := sendMessage(bot, update, db, state, text)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -59,16 +63,11 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB, state
 		log.Debug("update.Message is nil")
 		return nil
 	}
-	keyboard := addKeyboard(bot, db)
 
 	reportUser := update.Message.Chat.Username
 	if !db.UserExists(reportUser) {
 		text := `Ты кто такой, я тебя не знаю. Попроси Настюшку тебя зарегистрировать`
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
-		if err != nil {
-			log.Error("Could not send message to user %s. Reason : %v", reportUser, err)
-		}
-		return nil
+		return sendMessage(bot, update, db, state, text)
 	}
 	activities := db.GetActivities()
 	userMsg := update.Message.Text
@@ -77,21 +76,21 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB, state
 	if act, found := activities[userMsg]; found {
 		state.SetActivity(reportUser, userMsg)
 		text := fmt.Sprintf("Отлично, с выбором справился.\n%s", act.Question)
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
-		return err
+		return sendMessage(bot, update, db, state, text)
 	}
 
 	// we're here means user sent some random shit
 	selectedActivity := state.GetActivity(reportUser)
 	if selectedActivity == "" {
-		text := "Что ты тут печатаешь, выбери сначала что делал..."
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
-		return err
+		return sendMessage(bot, update, db, state,  "Что ты тут печатаешь, выбери сначала что делал...")
 	}
 
 	if userMsg == "" {
-		_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, "Отчеты котиками только за доп плату, текстом вводи...", "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
-		return err
+		return sendMessage(bot, update, db, state,  "Отчеты котиками только за доп плату, текстом вводи...")
+	}
+
+	if selectedActivity == "драка с колбасой" {
+		return sendMessage(bot, update, db, state,  "Выбери что-нибудь другое, а?")
 	}
 
 	report := database.Report{
@@ -102,6 +101,11 @@ func handleUpdate(bot *telego.Bot, update *objects.Update, db database.DB, state
 	}
 	db.AddReport(reportUser, report)
 	state.SetActivity(reportUser, "")
-	_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, "Запомнил!", "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
+	return sendMessage(bot, update, db, state, "Запомнил!")
+}
+
+func sendMessage(bot *telego.Bot, update *objects.Update, db database.DB, state *AppState, text string) error {
+	keyboard := addKeyboard(bot, db, state, update.Message.Chat.Username)
+	_, err := bot.AdvancedMode().ASendMessage(update.Message.Chat.Id, text, "", update.Message.MessageId, 0, false, false, nil, false, false, keyboard)
 	return err
 }
