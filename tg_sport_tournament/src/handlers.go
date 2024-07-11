@@ -29,7 +29,7 @@ func addStartHandler(bot *telego.Bot, db database.DB, state *AppState) error {
 		if update.Message == nil || update.Message.Chat == nil || update.Message.Chat.Username == "" {
 			return
 		}
-		text := `Привет, пес! Что сделал сегодня? Выбери активность а затем напиши отчет.`
+		text := `Привет, пес! Что сделал сегодня? Выбери активность, а затем напиши отчет.`
 		err := sendMessage(bot, update, db, state, text)
 		if err != nil {
 			fmt.Println(err)
