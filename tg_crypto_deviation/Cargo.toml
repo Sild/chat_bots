@@ -1,0 +1,14 @@
+[package]
+name = "tg_crypto_deviation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
+moka = { version = "0.12.8", features = ["sync"] }
+anyhow = "1.0.86"
+tokio = { version = "1.38.1", features = ["full"] }
+log = "0.4.22"
+env_logger = "0.11.3"
+teloxide = { version = "0.12", features = ["macros"] }
+futures = "0.3.30"
