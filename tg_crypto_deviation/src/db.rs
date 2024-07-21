@@ -1,11 +1,10 @@
+use moka::sync::Cache;
 use std::collections::HashMap;
 use std::sync::Arc;
-use moka::sync::Cache;
 
 pub type ID = u64;
 pub type TgID = String;
 pub type Symbol = String;
-
 
 #[derive(Debug, Clone)]
 pub struct Alert {
@@ -20,14 +19,12 @@ pub struct Alert {
 
 pub type ArcDB = Arc<DB>;
 pub struct DB {
-    alerts_cache: Cache<Symbol, HashMap<ID, Alert>>
+    alerts_cache: Cache<Symbol, HashMap<ID, Alert>>,
 }
 
 impl DB {
     pub fn new() -> Self {
-        Self {
-            alerts_cache: Cache::new(100),
-        }
+        Self { alerts_cache: Cache::new(100) }
     }
 
     pub fn add_alert(&self, alert: Alert) -> anyhow::Result<()> {
@@ -49,6 +46,5 @@ impl DB {
         //     self.alerts_cache.insert(symbol.clone(), new_alerts);
         // }
         Ok(())
-
     }
 }

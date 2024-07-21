@@ -1,14 +1,12 @@
-use std::ops::Deref;
-use std::sync::{Arc, mpsc};
-use std::sync::atomic::AtomicBool;
 use binance::websockets::{all_ticker_stream, WebSockets};
 use binance::ws_model::WebsocketEvent;
+use std::ops::Deref;
+use std::sync::atomic::AtomicBool;
+use std::sync::{mpsc, Arc};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-pub struct BinanceRestClient {
-
-}
+pub struct BinanceRestClient {}
 
 impl BinanceRestClient {
     pub fn new() -> Self {
@@ -43,14 +41,12 @@ impl BinanceStream {
             log::info!("Running websocket event loop...");
             if let Err(e) = web_socket.event_loop(&keep_running).await {
                 log::error!("Error in event loop: {:?}", e);
-                return
+                return;
             }
             log::info!("Event loop finished.");
         });
 
-        let stream = Self {
-            rx,
-        };
+        let stream = Self { rx };
         Ok(stream)
     }
 
@@ -61,6 +57,5 @@ impl BinanceStream {
                 res => return Ok(res?),
             }
         }
-
     }
 }

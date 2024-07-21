@@ -1,19 +1,17 @@
 extern crate core;
 
 mod binance;
-mod telegram;
 mod db;
 mod stream_processor;
+mod telegram;
 
-use std::sync::Arc;
-use futures::future::{try_join_all};
+use futures::future::try_join_all;
 use futures::FutureExt;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::builder().filter_level(log::LevelFilter::Info).init();
 
     if let Err(e) = run().await {
         log::error!("App finish with error: {:?}", e);
@@ -28,10 +26,7 @@ async fn run() -> anyhow::Result<()> {
     // let bin_rest_cli = binance::BinanceRestClient::new();
     let binance_stream = binance::BinanceStream::new()?;
     let mut stream_processor = stream_processor::StreamProcessor::new(db, binance_stream);
-    let futures = vec![
-        stream_processor.run().boxed(),
-        tg_cli.run().boxed(),
-    ];
+    let futures = vec![stream_processor.run().boxed(), tg_cli.run().boxed()];
     try_join_all(futures).await?;
     Ok(())
 }

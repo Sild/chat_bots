@@ -1,22 +1,19 @@
+use crate::db::ArcDB;
 use frankenstein::AsyncTelegramApi;
 use frankenstein::GetUpdatesParams;
 use frankenstein::Message;
 use frankenstein::ReplyParameters;
 use frankenstein::SendMessageParams;
 use frankenstein::{AsyncApi, UpdateContent};
-use crate::db::ArcDB;
 
 pub struct TGClient {
     api: AsyncApi,
-    db: ArcDB
+    db: ArcDB,
 }
 
 impl TGClient {
     pub fn new(token: &str, db: ArcDB) -> Self {
-        Self {
-            api: AsyncApi::new(token),
-            db,
-        }
+        Self { api: AsyncApi::new(token), db }
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
@@ -24,11 +21,9 @@ impl TGClient {
         let param_builder = GetUpdatesParams::builder();
         let mut update_params = param_builder.clone().build();
         loop {
-            log::debug!("waiting for updates...");
             let result = self.api.get_updates(&update_params).await;
-            log::debug!("update result: {result:?}");
             if let Err(err) = &result {
-                log::warn!("Failed to get updates: {err:?}");
+                log::warn!("Error while getting updates: {err:?}");
                 continue;
             }
 
@@ -40,10 +35,7 @@ impl TGClient {
                         process_message(message, api_clone).await;
                     });
                 }
-                update_params = param_builder
-                    .clone()
-                    .offset(update.update_id + 1)
-                    .build();
+                update_params = param_builder.clone().offset(update.update_id + 1).build();
             }
         }
         log::info!("TGClient finished.");
@@ -51,15 +43,9 @@ impl TGClient {
 }
 
 async fn process_message(message: Message, api: AsyncApi) {
-    let reply_parameters = ReplyParameters::builder()
-        .message_id(message.message_id)
-        .build();
+    let reply_parameters = ReplyParameters::builder().message_id(message.message_id).build();
 
-    let send_message_params = SendMessageParams::builder()
-        .chat_id(message.chat.id)
-        .text("hello")
-        .reply_parameters(reply_parameters)
-        .build();
+    let send_message_params = SendMessageParams::builder().chat_id(message.chat.id).text("hello").reply_parameters(reply_parameters).build();
 
     if let Err(err) = api.send_message(&send_message_params).await {
         println!("Failed to send message: {err:?}");
