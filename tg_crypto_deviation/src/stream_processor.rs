@@ -1,5 +1,4 @@
-use binance::model::DayTickerEvent;
-use binance::websockets::WebsocketEvent;
+use binance::ws_model::{DayTickerEvent, WebsocketEvent};
 use crate::binance::BinanceStream;
 use crate::db::ArcDB;
 
@@ -17,26 +16,25 @@ impl StreamProcessor {
     }
 
     pub async fn run(&mut self) -> anyhow::Result<()> {
-        while let Ok(event) = self.stream.next() {
+        while let Ok(event) = self.stream.next().await {
             match event {
                 // 24hr rolling window ticker statistics for all symbols that changed in an array.
-                WebsocketEvent::DayTickerAll(ticker_events) => {
-                    self.process_day_ticket_event(ticker_events).await?;
+                WebsocketEvent::DayTicker(ticker_event) => {
+                    self.process_day_ticket_event(ticker_event).await?;
                 },
                 _ => (),
             };
+
         }
         log::info!("StreamProcessor finished.");
         Ok(())
     }
 
-    async fn process_day_ticket_event(&self, ticker_events: Vec<DayTickerEvent>) -> anyhow::Result<()> {
-        for tick_event in ticker_events {
-            if tick_event.symbol != "BTCUSDT" {
-                continue;
-            }
-            // println!("{} close: {}", tick_event.symbol, tick_event.current_close);
+    async fn process_day_ticket_event(&self, ticker_event: Box<DayTickerEvent>) -> anyhow::Result<()> {
+        if ticker_event.symbol != "BTCUSDT" {
+            return Ok(());
         }
+        log::debug!("{} close: {}", ticker_event.symbol, ticker_event.current_close);
         Ok(())
     }
 }

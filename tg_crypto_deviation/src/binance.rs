@@ -1,9 +1,10 @@
 use std::ops::Deref;
 use std::sync::{Arc, mpsc};
 use std::sync::atomic::AtomicBool;
-use std::thread::sleep;
-use binance::websockets::{WebsocketEvent, WebSockets};
+use binance::websockets::{all_ticker_stream, WebSockets};
+use binance::ws_model::WebsocketEvent;
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 
 pub struct BinanceRestClient {
 
@@ -27,18 +28,20 @@ impl BinanceStream {
 
         tokio::spawn(async move {
             let keep_running = AtomicBool::new(true);
-            let mut web_socket = WebSockets::new(|event: WebsocketEvent| {
-                if let Err(e) = tx.send(event) {
-                    log::error!("Error sending event: {:?}", e.to_string());
+            let mut web_socket = WebSockets::new(|events: Vec<WebsocketEvent>| {
+                for ev in events {
+                    if let Err(e) = tx.send(ev) {
+                        log::error!("Error while pushing event to queue: {:?}", e.to_string());
+                    }
                 }
                 Ok(())
             });
-            if let Err(e) = web_socket.connect(&"!ticker@arr".to_string()) {
+            if let Err(e) = web_socket.connect(all_ticker_stream()).await {
                 log::error!("Error connecting to websocket: {:?}", e);
                 return;
             }
             log::info!("Running websocket event loop...");
-            if let Err(e) = web_socket.event_loop(&keep_running) {
+            if let Err(e) = web_socket.event_loop(&keep_running).await {
                 log::error!("Error in event loop: {:?}", e);
                 return
             }
@@ -51,7 +54,13 @@ impl BinanceStream {
         Ok(stream)
     }
 
-    pub fn next(&mut self) -> anyhow::Result<WebsocketEvent> {
-        Ok(self.rx.recv()?)
+    pub async fn next(&mut self) -> anyhow::Result<WebsocketEvent> {
+        loop {
+            match self.rx.recv_timeout(std::time::Duration::from_millis(10)) {
+                Err(mpsc::RecvTimeoutError::Timeout) => sleep(std::time::Duration::from_millis(20)).await,
+                res => return Ok(res?),
+            }
+        }
+
     }
 }

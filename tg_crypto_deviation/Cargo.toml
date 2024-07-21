@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
+binance-rs-async = "1.3.3"
 moka = { version = "0.12.8", features = ["sync"] }
 anyhow = "1.0.86"
 tokio = { version = "1.38.1", features = ["full"] }
 log = "0.4.22"
 env_logger = "0.11.3"
-teloxide = { version = "0.12", features = ["macros"] }
+frankenstein = {  version = "0.32", features = ["async-trait", "async-http-client", "async-telegram-trait"] }
 futures = "0.3.30"

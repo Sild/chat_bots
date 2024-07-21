@@ -1,26 +1,67 @@
-use teloxide::Bot;
-use teloxide::prelude::{Message, Requester};
+use frankenstein::AsyncTelegramApi;
+use frankenstein::GetUpdatesParams;
+use frankenstein::Message;
+use frankenstein::ReplyParameters;
+use frankenstein::SendMessageParams;
+use frankenstein::{AsyncApi, UpdateContent};
+use crate::db::ArcDB;
 
 pub struct TGClient {
-    bot_impl: Bot,
+    api: AsyncApi,
+    db: ArcDB
 }
 
 impl TGClient {
-    pub fn new() -> Self {
+    pub fn new(token: &str, db: ArcDB) -> Self {
         Self {
-            bot_impl: Bot::from_env(),
+            api: AsyncApi::new(token),
+            db,
         }
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
         log::info!("TGClient started.");
-        let bot_cloned = self.bot_impl.clone();
-        teloxide::repl(bot_cloned, |bot: Bot, msg: Message| async move {
-            log::info!("Received a message: {:?}", msg);
-            bot.send_dice(msg.chat.id).await?;
-            Ok(())
-        }).await;
+        let param_builder = GetUpdatesParams::builder();
+        let mut update_params = param_builder.clone().build();
+        loop {
+            log::debug!("waiting for updates...");
+            let result = self.api.get_updates(&update_params).await;
+            log::debug!("update result: {result:?}");
+            if let Err(err) = &result {
+                log::warn!("Failed to get updates: {err:?}");
+                continue;
+            }
+
+            for update in result.unwrap().result {
+                if let UpdateContent::Message(message) = update.content {
+                    let api_clone = self.api.clone();
+
+                    tokio::spawn(async move {
+                        process_message(message, api_clone).await;
+                    });
+                }
+                update_params = param_builder
+                    .clone()
+                    .offset(update.update_id + 1)
+                    .build();
+            }
+        }
         log::info!("TGClient finished.");
-        Ok(())
+    }
+}
+
+async fn process_message(message: Message, api: AsyncApi) {
+    let reply_parameters = ReplyParameters::builder()
+        .message_id(message.message_id)
+        .build();
+
+    let send_message_params = SendMessageParams::builder()
+        .chat_id(message.chat.id)
+        .text("hello")
+        .reply_parameters(reply_parameters)
+        .build();
+
+    if let Err(err) = api.send_message(&send_message_params).await {
+        println!("Failed to send message: {err:?}");
     }
 }
