@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Split Smart Bot Mini App</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 16px; }
+    .container { max-width: 680px; margin: 0 auto; }
+    h1 { font-size: 20px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    input[type="number"] { padding: 8px; width: 160px; }
+    button { padding: 8px 12px; }
+    ul { padding-left: 20px; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .muted { color: #666; font-size: 12px; }
+  </style>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Split Smart Bot</h1>
+
+    <div class="card">
+      <div class="row">
+        <input id="numberInput" type="number" placeholder="Enter number" />
+        <button id="addBtn">Add</button>
+      </div>
+      <div class="muted">Saves your number with your Telegram name.</div>
+    </div>
+
+    <div class="card">
+      <button id="refreshListBtn">Refresh List</button>
+      <ul id="list"></ul>
+    </div>
+
+    <div class="card">
+      <button id="refreshUsersBtn">Refresh Users</button>
+      <ul id="users"></ul>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    const baseUrl = window.location.origin;
+
+    async function fetchJson(path) {
+      const res = await fetch(baseUrl + path);
+      if (!res.ok) throw new Error('Request failed');
+      return await res.json();
+    }
+
+    async function postJson(path, body) {
+      const res = await fetch(baseUrl + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Request failed');
+      return await res.json();
+    }
+
+    function getUserInfo() {
+      const user = tg?.initDataUnsafe?.user;
+      if (user) {
+        return { id: user.id, name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'unknown' };
+      }
+      return { id: 0, name: 'unknown' };
+    }
+
+    async function loadList() {
+      const items = await fetchJson('/api/list');
+      const ul = document.getElementById('list');
+      ul.innerHTML = '';
+      items.forEach(it => {
+        const li = document.createElement('li');
+        li.textContent = `${it.user_name}: ${it.number}`;
+        ul.appendChild(li);
+      });
+    }
+
+    async function loadUsers() {
+      const data = await fetchJson('/api/users');
+      const ul = document.getElementById('users');
+      ul.innerHTML = '';
+      data.users.forEach(u => {
+        const li = document.createElement('li');
+        li.textContent = `${u[1]} (${u[0]})`;
+        ul.appendChild(li);
+      });
+    }
+
+    document.getElementById('addBtn').addEventListener('click', async () => {
+      const numEl = document.getElementById('numberInput');
+      const value = parseInt(numEl.value, 10);
+      if (isNaN(value)) { alert('Enter a valid number'); return; }
+      const user = getUserInfo();
+      await postJson('/api/add', { user_id: user.id, user_name: user.name, number: value });
+      numEl.value = '';
+      await loadList();
+    });
+
+    document.getElementById('refreshListBtn').addEventListener('click', loadList);
+    document.getElementById('refreshUsersBtn').addEventListener('click', loadUsers);
+
+    // initial load
+    loadList();
+    loadUsers();
+  </script>
+</body>
+</html>
