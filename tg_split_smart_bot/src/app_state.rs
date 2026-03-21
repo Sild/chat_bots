@@ -1,19 +1,17 @@
-use std::sync::Arc;
-
-use sqlx::SqlitePool;
-use teloxide::Bot;
-
-use crate::config::Config;
+use crate::application::SplitSmartApplication;
+use crate::infra::telegram::TelegramGateway;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: SqlitePool,
-    pub bot: Bot,
-    pub config: Arc<Config>,
+    pub application: SplitSmartApplication,
+    pub telegram: TelegramGateway,
 }
 
 impl AppState {
-    pub fn new(db: SqlitePool, bot: Bot, config: Arc<Config>) -> Self {
-        Self { db, bot, config }
+    pub fn new(application: SplitSmartApplication, telegram: TelegramGateway) -> Self {
+        Self {
+            application,
+            telegram,
+        }
     }
 }

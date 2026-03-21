@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SplitSmart</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Telegram Trip Ledger</p>
+        <h1>SplitSmart</h1>
+        <p id="chatTitle" class="subhead">Loading chat…</p>
+      </div>
+      <div class="hero-actions">
+        <button id="refreshButton" class="secondary">Refresh</button>
+        <button id="addSpendButton">Add spend</button>
+      </div>
+    </section>
+
+    <section id="errorBox" class="error hidden"></section>
+
+    <section class="stats">
+      <article class="card">
+        <span class="label">Participants</span>
+        <strong id="participantsCount" class="value">0</strong>
+      </article>
+      <article class="card">
+        <span class="label">Spends</span>
+        <strong id="spendsCount" class="value">0</strong>
+      </article>
+      <article class="card">
+        <span class="label">Session</span>
+        <strong id="sessionId" class="value">-</strong>
+      </article>
+    </section>
+
+    <section class="layout">
+      <article class="card">
+        <div class="section-header">
+          <h2>Participants</h2>
+          <span id="currentUser" class="pill"></span>
+        </div>
+        <div id="participantsList" class="stack"></div>
+      </article>
+
+      <article class="card">
+        <div class="section-header">
+          <h2>Balances</h2>
+          <button id="resetButton" class="warning">Reset session</button>
+        </div>
+        <div id="balancesList" class="stack"></div>
+      </article>
+
+      <article class="card wide">
+        <div class="section-header">
+          <h2>Suggested transfers</h2>
+        </div>
+        <div id="transfersList" class="stack"></div>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="spendDialog" class="dialog">
+    <form method="dialog" class="dialog-card">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">New shared spend</p>
+          <h2>Add spend</h2>
+        </div>
+        <button id="closeDialogButton" class="ghost" value="cancel" type="button">Close</button>
+      </header>
+
+      <label class="field">
+        <span>Total amount</span>
+        <input id="totalInput" type="text" placeholder="120.00" inputmode="decimal">
+      </label>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Split mode</span>
+          <select id="modeSelect">
+            <option value="ABS">ABS</option>
+            <option value="PERCENT">PERCENT</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Payer</span>
+          <select id="payerSelect"></select>
+        </label>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="equalSplitButton" class="secondary" type="button">Equal split</button>
+        <span id="splitHint" class="hint">Split values must sum exactly to the total.</span>
+      </div>
+
+      <div id="splitRows" class="split-rows"></div>
+
+      <footer class="dialog-footer">
+        <button id="submitSpendButton" type="button">Save spend</button>
+      </footer>
+    </form>
+  </dialog>
+</body>
+</html>

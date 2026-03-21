@@ -1,30 +1,63 @@
-# SplitSmart (Telegram Bot + Mini App)
+# SplitSmart
 
-Production-grade Telegram bot and WebApp for splitting group costs.
+SplitSmart is a Telegram Bot plus Telegram Mini App for fair group expense splitting during a trip.
 
-## Environment
+The bot posts an `Open SplitSmart 👇` message into the chat, with a Telegram Web App button and a fallback browser button that both point to:
 
-- `BOT_TOKEN` - Bot token from BotFather
-- `PUBLIC_BASE_URL` - Public HTTPS base URL (e.g. `https://your-domain.tld`)
-- `SQLITE_PATH` - Path to SQLite database file (e.g. `data/splitsmart.db`)
-- `WEBAPP_URL` - WebApp base URL (defaults to `${PUBLIC_BASE_URL}/app`)
-- `TELEGRAM_BOT_USERNAME` - Bot username (without `@`)
+`https://<PUBLIC_BASE_URL>/app?chat_id=<chat_id>`
 
-## Local development
+The backend is server-authoritative:
 
-1. Run ngrok to expose the HTTP server:
+- participants exist only after they open the Mini App and complete signed Telegram bootstrap
+- all identity and membership checks happen on the backend
+- expense calculations use integer cents only
+- the active trip state is scoped to one open session per chat
+
+## Features
+
+- opt-in participant registration per Telegram chat
+- shared spend creation with payer selection
+- `ABS` split mode for exact amounts
+- `PERCENT` split mode with deterministic largest-remainder rounding
+- live balances and greedy settlement suggestions
+- `/report` bot command for the current session
+- `/reset` bot command and API flow that posts the current report, closes the session, and opens a new one while keeping participants
+
+## Environment Variables
+
+Required:
+
+- `SPLIT_SMART_BOT_TOKEN`: primary bot token source
+- `PUBLIC_BASE_URL`: public HTTPS base URL, for example `https://example.ngrok-free.app`
+- `SQLITE_PATH`: SQLite database path, for example `data/splitsmart.db`
+- `TELEGRAM_BOT_USERNAME`: bot username without `@`
+
+Optional compatibility fallback:
+
+- `BOT_TOKEN`: used only if `SPLIT_SMART_BOT_TOKEN` is unset
+
+## Local Setup
+
+1. Create a public HTTPS tunnel. Telegram Mini Apps require HTTPS.
+
+Using `ngrok`:
 
 ```bash
 ngrok http 8080
 ```
 
-2. Set env vars:
+Using `cloudflared`:
 
 ```bash
-export BOT_TOKEN=...
-export PUBLIC_BASE_URL=https://<your-ngrok-domain>
+cloudflared tunnel --url http://localhost:8080
+```
+
+2. Export the environment variables:
+
+```bash
+export SPLIT_SMART_BOT_TOKEN=123456:your-bot-token
+export PUBLIC_BASE_URL=https://your-public-domain.example
 export SQLITE_PATH=data/splitsmart.db
-export WEBAPP_URL=${PUBLIC_BASE_URL}/app
 export TELEGRAM_BOT_USERNAME=split_smart_bot
 ```
 
@@ -34,19 +67,58 @@ export TELEGRAM_BOT_USERNAME=split_smart_bot
 cargo run
 ```
 
-## Telegram setup
+4. The bot and HTTP server run in the same process. The HTTP server listens on `0.0.0.0:8080`.
 
-- In BotFather, enable Mini App/WebApp and set the allowed WebApp domain to your HTTPS domain.
-- Add the bot to a group or start a private chat.
-- The bot posts an "Open SplitSmart" button to launch the WebApp. The fallback browser button works without Telegram auth, but the backend rejects API calls without valid `initData`.
+## Database
 
-## SQLx notes
+SQLite migrations live in [migrations/0001_init.sql](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/migrations/0001_init.sql).
 
-- Migrations are in `migrations/` and run on startup.
-- For compile-time query checks, set `DATABASE_URL` to your SQLite URL and run:
+Startup behavior:
+
+- creates the SQLite parent directory if needed
+- enables SQLite foreign keys
+- runs migrations automatically
+
+## Telegram BotFather Setup
+
+1. Create the bot in BotFather and copy the token.
+2. Set the bot username and export it as `TELEGRAM_BOT_USERNAME`.
+3. Configure the Mini App domain in BotFather to match `PUBLIC_BASE_URL`.
+4. Add the bot to the target group or supergroup.
+5. Start the bot in a private chat if you also want to test the private-chat flow.
+
+## Telegram Mini App Flow
+
+When the bot is added to a chat, or when `/start` is used, the bot sends `Open SplitSmart 👇` with two buttons:
+
+- Telegram Web App button
+- fallback URL button
+
+The bot then attempts to pin that message. If pinning fails, the app logs the failure and continues.
+
+Users become participants only when they open the Mini App from Telegram and the backend successfully validates `Telegram.WebApp.initData`.
+
+## API Overview
+
+- `POST /api/bootstrap`
+- `POST /api/spends`
+- `POST /api/report`
+- `POST /api/reset`
+
+All JSON API routes require signed Telegram Mini App `init_data`. A plain browser fallback can open `/app`, but backend actions are rejected without valid signed Telegram data.
+
+## Quality Gates
+
+The project is intended to pass:
 
 ```bash
-cargo sqlx prepare -- --all-targets
+cargo +nightly fmt
+cargo clippy --all-targets --all-features -- -D warnings
+cargo nextest run --all-targets --all-features
 ```
 
-Then build with `SQLX_OFFLINE=true` (and optionally `--features sqlx-offline`) for offline checks.
+## Important Telegram Limitations
+
+- Telegram bots cannot fetch an arbitrary full group member list. SplitSmart only knows about users who opened the Mini App and registered themselves.
+- The fallback browser button may open outside Telegram and therefore may not include signed `initData`. Backend actions reject missing or invalid signed data.
+- Reset authorization relies on Telegram `getChatMember`, not on frontend claims.
