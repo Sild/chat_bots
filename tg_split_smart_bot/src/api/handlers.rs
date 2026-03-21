@@ -10,6 +10,10 @@ use crate::app_state::AppState;
 use crate::application::{AddSpendCommand, SplitInput};
 use crate::error::AppError;
 
+pub async fn health() -> impl IntoResponse {
+    "ok"
+}
+
 pub async fn app_page() -> impl IntoResponse {
     Html(include_str!("../../static/app.html"))
 }

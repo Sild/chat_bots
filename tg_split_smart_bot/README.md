@@ -2,9 +2,9 @@
 
 SplitSmart is a Telegram Bot plus Telegram Mini App for fair group expense splitting during a trip.
 
-The bot posts an `Open SplitSmart 👇` message into the chat, with a Telegram Web App button and a fallback browser button that both point to:
+The bot posts a pinned message into the chat with a Telegram Web App button that points to:
 
-`https://<PUBLIC_BASE_URL>/app?chat_id=<chat_id>`
+`https://<PUBLIC_BASE_URL>/tg?chat_id=<chat_id>`
 
 The backend is server-authoritative:
 
@@ -35,6 +35,8 @@ Required:
 Optional compatibility fallback:
 
 - `BOT_TOKEN`: used only if `SPLIT_SMART_BOT_TOKEN` is unset
+- `TELEGRAM_PROXY_URL`: optional external HTTP or SOCKS proxy URL for Telegram Bot API traffic, for example `http://user:pass@proxy.example:3128` or `socks5h://user:pass@proxy.example:1080`
+- `TELOXIDE_PROXY`: supported as a compatibility alias for `TELEGRAM_PROXY_URL`
 
 ## Local Setup
 
@@ -69,6 +71,27 @@ cargo run
 
 4. The bot and HTTP server run in the same process. The HTTP server listens on `0.0.0.0:8080`.
 
+## Docker Deployment
+
+The repo includes:
+
+- [Dockerfile](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/Dockerfile)
+- [docker-compose.yml](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/docker-compose.yml)
+- [.env.example](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/.env.example)
+- [split_smart.sild.dev.conf](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/deploy/nginx/split_smart.sild.dev.conf)
+
+This deployment keeps SQLite in a persistent Docker volume and binds the app to `127.0.0.1:8081`, with host nginx proxying the public domain to the container.
+
+If your VM cannot reach `api.telegram.org` directly, point `TELEGRAM_PROXY_URL` at an external proxy that can. A proxy on the same VM will not help, because it would still use the same broken upstream route.
+
+Typical commands:
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+docker compose logs -f app
+```
+
 ## Database
 
 SQLite migrations live in [migrations/0001_init.sql](/Users/sild/Projects/Personal/chat_bots/tg_split_smart_bot/migrations/0001_init.sql).
@@ -89,10 +112,7 @@ Startup behavior:
 
 ## Telegram Mini App Flow
 
-When the bot is added to a chat, or when `/start` is used, the bot sends `Open SplitSmart 👇` with two buttons:
-
-- Telegram Web App button
-- fallback URL button
+When the bot is added to a chat, or when `/start` is used, the bot sends `Чтобы разделить счёт — откройте SplitSmart 👇` with a `SplitSmart` Telegram Web App button.
 
 The bot then attempts to pin that message. If pinning fails, the app logs the failure and continues.
 
@@ -105,7 +125,7 @@ Users become participants only when they open the Mini App from Telegram and the
 - `POST /api/report`
 - `POST /api/reset`
 
-All JSON API routes require signed Telegram Mini App `init_data`. A plain browser fallback can open `/app`, but backend actions are rejected without valid signed Telegram data.
+All JSON API routes require signed Telegram Mini App `init_data`. A plain browser can open `/tg`, but backend actions are rejected without valid signed Telegram data.
 
 ## Quality Gates
 
@@ -120,5 +140,4 @@ cargo nextest run --all-targets --all-features
 ## Important Telegram Limitations
 
 - Telegram bots cannot fetch an arbitrary full group member list. SplitSmart only knows about users who opened the Mini App and registered themselves.
-- The fallback browser button may open outside Telegram and therefore may not include signed `initData`. Backend actions reject missing or invalid signed data.
 - Reset authorization relies on Telegram `getChatMember`, not on frontend claims.

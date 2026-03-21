@@ -1,0 +1,9 @@
+.git
+.idea
+target
+data
+frontend
+.env
+.env.*
+*.db
+*.sqlite

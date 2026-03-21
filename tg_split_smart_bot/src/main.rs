@@ -1,9 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
+use reqwest::Proxy;
 use sqlx::sqlite::SqlitePoolOptions;
-use tracing::info;
+use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 use tg_split_smart_bot::app_state::AppState;
@@ -36,14 +38,19 @@ async fn main() -> anyhow::Result<()> {
         .context("failed to run migrations")?;
 
     let database = Database::new(pool);
-    let bot = teloxide::Bot::new(config.bot_token.clone());
+    let bot = build_bot_client(&config)?;
     let telegram = TelegramGateway::new(bot, config.app_base_url.clone());
     let application = SplitSmartApplication::new(database.clone(), config.bot_token.clone());
-    let state = Arc::new(AppState::new(application, telegram));
+    let state = Arc::new(AppState::new(
+        application,
+        telegram,
+        config.telegram_bot_username.clone(),
+    ));
 
     info!(
         public_base_url = %config.public_base_url,
         telegram_bot_username = %config.telegram_bot_username,
+        telegram_proxy_enabled = config.telegram_proxy_url.is_some(),
         "starting SplitSmart",
     );
 
@@ -54,20 +61,28 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("failed to bind http listener on {bind_addr}"))?;
     info!(%bind_addr, "http server listening");
 
-    let http_task = tokio::spawn(async move {
-        axum::serve(listener, app)
-            .await
-            .context("http server terminated")
+    tokio::spawn(async move {
+        loop {
+            let state = state.clone();
+            let result = tokio::spawn(async move {
+                let bot_runner = SplitSmartBot::new(state);
+                bot_runner.run().await
+            })
+            .await;
+
+            match result {
+                Ok(Ok(())) => warn!("bot runner exited unexpectedly; restarting"),
+                Ok(Err(error)) => error!(?error, "bot runner failed; restarting"),
+                Err(error) => error!(?error, "bot runner panicked; restarting"),
+            }
+
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
     });
 
-    let bot_task = tokio::spawn(async move {
-        let bot_runner = SplitSmartBot::new(state);
-        bot_runner.run().await
-    });
-
-    let (http_result, bot_result) = tokio::try_join!(http_task, bot_task)?;
-    http_result?;
-    bot_result?;
+    axum::serve(listener, app)
+        .await
+        .context("http server terminated")?;
 
     Ok(())
 }
@@ -77,11 +92,36 @@ fn init_tracing() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 }
 
+fn build_bot_client(config: &Config) -> anyhow::Result<teloxide::Bot> {
+    let builder = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(17))
+        .tcp_nodelay(true);
+    let builder = if let Some(proxy_url) = &config.telegram_proxy_url {
+        builder.proxy(Proxy::all(proxy_url).with_context(|| {
+            format!("failed to parse TELEGRAM_PROXY_URL/TELOXIDE_PROXY: {proxy_url}")
+        })?)
+    } else {
+        builder
+    };
+    let client = builder
+        .build()
+        .context("failed to build reqwest client for Telegram bot")?;
+
+    Ok(teloxide::Bot::with_client(config.bot_token.clone(), client))
+}
+
 fn ensure_sqlite_parent(sqlite_path: &str) -> anyhow::Result<()> {
     if let Some(parent) = Path::new(sqlite_path).parent() {
         std::fs::create_dir_all(parent).with_context(|| {
             format!("failed to create sqlite parent directory for {sqlite_path}")
         })?;
     }
+    std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(sqlite_path)
+        .with_context(|| format!("failed to create sqlite database file at {sqlite_path}"))?;
     Ok(())
 }

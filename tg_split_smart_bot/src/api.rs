@@ -12,6 +12,8 @@ use crate::app_state::AppState;
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/healthz", get(handlers::health))
+        .route("/tg", get(handlers::app_page))
         .route("/app", get(handlers::app_page))
         .route("/api/bootstrap", post(handlers::bootstrap))
         .route("/api/spends", post(handlers::add_spend))

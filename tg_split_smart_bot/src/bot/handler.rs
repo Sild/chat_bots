@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use teloxide::dispatching::HandlerExt;
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::dptree;
 use teloxide::prelude::{Bot, Dispatcher, Message, Update};
 use teloxide::types::{ChatKind, ChatMemberStatus, ChatMemberUpdated, PublicChatKind};
+use teloxide::utils::command::parse_command;
 use tracing::warn;
 
 use crate::app_state::AppState;
@@ -12,9 +12,7 @@ use crate::bot::commands::Command;
 use crate::error::AppError;
 
 pub(super) async fn run(state: Arc<AppState>) -> anyhow::Result<()> {
-    let message_handler = Update::filter_message()
-        .filter_command::<Command>()
-        .endpoint(handle_command);
+    let message_handler = Update::filter_message().endpoint(handle_message);
     let chat_member_handler = Update::filter_my_chat_member().endpoint(handle_my_chat_member);
 
     Dispatcher::builder(
@@ -36,7 +34,6 @@ fn bot_for_dispatcher(state: &AppState) -> teloxide::Bot {
 }
 
 async fn handle_command(
-    _bot: Bot,
     state: Arc<AppState>,
     message: Message,
     command: Command,
@@ -72,6 +69,17 @@ async fn handle_command(
     }
 
     Ok(())
+}
+
+async fn handle_message(_bot: Bot, state: Arc<AppState>, message: Message) -> Result<(), AppError> {
+    let Some(text) = message.text() else {
+        return Ok(());
+    };
+    let Some(command) = parse_message_command(text, &state.telegram_bot_username) else {
+        return Ok(());
+    };
+
+    handle_command(state, message, command).await
 }
 
 async fn handle_my_chat_member(
@@ -116,5 +124,33 @@ fn chat_metadata(chat: &teloxide::types::Chat) -> (&'static str, Option<String>)
             PublicChatKind::Supergroup(_) => ("supergroup", title),
             PublicChatKind::Channel(_) => ("channel", title),
         },
+    }
+}
+
+fn parse_message_command(text: &str, bot_username: &str) -> Option<Command> {
+    let (command, _) = parse_command(text, bot_username)?;
+    match command {
+        "start" => Some(Command::Start),
+        "report" => Some(Command::Report),
+        "reset" => Some(Command::Reset),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_message_command;
+    use crate::bot::commands::Command;
+
+    #[test]
+    fn test_parse_message_command_accepts_group_start_for_this_bot() {
+        let parsed = parse_message_command("/start@split_smart_bot payload", "split_smart_bot");
+        assert!(matches!(parsed, Some(Command::Start)));
+    }
+
+    #[test]
+    fn test_parse_message_command_rejects_start_for_other_bot() {
+        let parsed = parse_message_command("/start@other_bot payload", "split_smart_bot");
+        assert!(parsed.is_none());
     }
 }

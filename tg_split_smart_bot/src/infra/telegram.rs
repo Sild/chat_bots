@@ -21,24 +21,20 @@ impl TelegramGateway {
 
     pub async fn send_open_message(&self, chat_id: i64) -> AppResult<()> {
         let url = self.open_app_url(chat_id);
-        let keyboard = InlineKeyboardMarkup::new(vec![
-            vec![InlineKeyboardButton::web_app(
-                "Open SplitSmart",
-                WebAppInfo {
-                    url: url::Url::parse(&url)
-                        .map_err(|_| AppError::Validation("invalid app url".to_string()))?,
-                },
-            )],
-            vec![InlineKeyboardButton::url(
-                "Open in browser (no auth)",
-                url.parse()
+        let keyboard = InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::web_app(
+            "SplitSmart",
+            WebAppInfo {
+                url: url::Url::parse(&url)
                     .map_err(|_| AppError::Validation("invalid app url".to_string()))?,
-            )],
-        ]);
+            },
+        )]]);
 
         let message = self
             .bot
-            .send_message(ChatId(chat_id), "Open SplitSmart 👇")
+            .send_message(
+                ChatId(chat_id),
+                "Чтобы разделить счёт — откройте SplitSmart 👇",
+            )
             .reply_markup(keyboard)
             .await?;
 

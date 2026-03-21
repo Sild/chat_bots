@@ -5,13 +5,19 @@ use crate::infra::telegram::TelegramGateway;
 pub struct AppState {
     pub application: SplitSmartApplication,
     pub telegram: TelegramGateway,
+    pub telegram_bot_username: String,
 }
 
 impl AppState {
-    pub fn new(application: SplitSmartApplication, telegram: TelegramGateway) -> Self {
+    pub fn new(
+        application: SplitSmartApplication,
+        telegram: TelegramGateway,
+        telegram_bot_username: String,
+    ) -> Self {
         Self {
             application,
             telegram,
+            telegram_bot_username,
         }
     }
 }
